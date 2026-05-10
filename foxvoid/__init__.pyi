@@ -46,6 +46,10 @@ def is_pixel_art_mode() -> bool:
 class GameObject:
     name: str
 
+    # Tag used to group and identify objects (e.g., "Enemy", "Player", "Projectile")
+    # Defaults to "Untagged"
+    tag: str
+
     # Allow enabling or disabling the GameObject and its components
     is_active: bool
     
@@ -834,6 +838,27 @@ class Scene:
             camera = Scene.find_object_by_name("Main Camera")
             if camera:
                 print("Camera found!")
+        """
+        ...
+
+    @staticmethod
+    def find_objects_with_tag(target_tag: str) -> List[GameObject]:
+        """
+        Searches for all active GameObjects matching the given tag across the entire scene.
+        This method is highly optimized in C++ for fast radar and collision queries.
+        
+        Args:
+            target_tag (str): The tag to search for (e.g., "Enemy").
+            
+        Returns:
+            List[GameObject]: A list of all active GameObjects that possess the requested tag.
+                              Returns an empty list if no objects match.
+            
+        Example:
+            enemies = Scene.find_objects_with_tag("Enemy")
+            for enemy in enemies:
+                enemy_transform = enemy.get_component(Transform2d)
+                # Calculate distance...
         """
         ...
 

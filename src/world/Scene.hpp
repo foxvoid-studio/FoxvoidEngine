@@ -547,6 +547,23 @@ class Scene {
             return nullptr;
         }
 
+        // Searches for all active GameObjects matching the given tag
+        std::vector<GameObject*> FindObjectsWithTag(const std::string& targetTag) {
+            std::vector<GameObject*> results;
+
+            // Reserve a small capacity to avoid immediate reallocations
+            results.reserve(10);
+
+            for (const auto& go : m_gameObjects) {
+                // We only return objects that exist, are active, and have the correct tag
+                if (go && go->IsActiveInHierarchy() && go->tag == targetTag) {
+                    results.push_back(go.get());
+                }
+            }
+
+            return results;
+        }
+
     private:
         bool m_isRunning = false;
 

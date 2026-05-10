@@ -82,6 +82,7 @@ nlohmann::json GameObject::Serialize() const {
     j["isActive"] = isActive;
 
     j["name"] = name;
+    j["tag"] = tag;
     j["components"] = nlohmann::json::array();
 
     for (const auto& comp : components) {
@@ -101,6 +102,11 @@ void GameObject::Deserialize(const nlohmann::json& j) {
     // Update the name if it exists in the JSON data
     if (j.contains("name")) {
         name = j["name"];
+    }
+
+    // Update the tag if it exists in the JSON data
+    if (j.contains("tag")) {
+        tag = j["tag"];
     }
 
     isActive = j.value("isActive", true);

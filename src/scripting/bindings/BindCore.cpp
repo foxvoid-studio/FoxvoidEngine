@@ -59,6 +59,7 @@ void BindCore(py::module_& m) {
 
     py::class_<GameObject>(m, "GameObject")
         .def_readwrite("name", &GameObject::name)
+        .def_readwrite("tag", &GameObject::tag)
         .def_readonly("id", &GameObject::id)
         .def_readwrite("is_active", &GameObject::isActive)
         .def("is_active_in_hierarchy", &GameObject::IsActiveInHierarchy)
@@ -165,6 +166,14 @@ void BindCore(py::module_& m) {
                 return nullptr;
             },
             py::return_value_policy::reference, py::arg("name")
+        )
+        .def_static("find_objects_with_tag", 
+            [](const std::string& targetTag) {
+                if (Engine::Get()) {
+                    return Engine::Get()->GetActiveScene().FindObjectsWithTag(targetTag);
+                }
+            },
+            py::return_value_policy::reference
         );
 
     py::class_<PersistentComponent, Component>(m, "PersistentComponent")

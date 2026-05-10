@@ -11,6 +11,9 @@ class GameObject {
     public:
         std::string name;
 
+        // Tag used to group and identify objects (e.g., "Enemy", "Player", "Projectile")
+        std::string tag = "Untagged";
+
         // Unique identifier for serialization and scene references
         uint64_t id;
 
