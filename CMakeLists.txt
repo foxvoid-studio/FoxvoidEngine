@@ -277,7 +277,6 @@ if (EMSCRIPTEN)
     # Output an HTML file containing the WebGL Canvas context
     set_target_properties(FoxvoidStandalone PROPERTIES SUFFIX ".html")
 
-    # Utilisation du dossier téléchargé au lieu du dossier vendor
     target_link_libraries(FoxvoidStandalone PRIVATE 
         "${python_wasm_deps_SOURCE_DIR}/lib/libmpdec.a"
         "${python_wasm_deps_SOURCE_DIR}/lib/libexpat.a"

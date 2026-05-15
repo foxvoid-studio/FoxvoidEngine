@@ -3,6 +3,7 @@
 #include "commands/ChangeNameCommand.hpp"
 #include <scripting/ScriptableObject.hpp>
 #include <scripting/DataManager.hpp>
+#include "commands/ChangeTagCommand.hpp"
 
 void InspectorPanel::Draw(GameObject*& selectedObject, py::object& selectedAsset, std::string& selectedAssetPath) {
     ImGui::Begin("Inspector");
@@ -74,6 +75,42 @@ void InspectorPanel::Draw(GameObject*& selectedObject, py::object& selectedAsset
         } 
         else if (ImGui::IsItemDeactivated() && ImGui::IsKeyPressed(ImGuiKey_Escape)) {
             selectedObject->name = initialName;
+        }
+
+        // ==========================================
+        // EDIT TAG
+        // ==========================================
+        char tagBuffer[256];
+        strncpy(tagBuffer, selectedObject->tag.c_str(), sizeof(tagBuffer));
+        tagBuffer[sizeof(tagBuffer) - 1] = '\0'; 
+            
+        // Draw the text input box for the tag
+        ImGui::InputText("Tag", tagBuffer, sizeof(tagBuffer));
+
+        static std::string initialTag;
+
+        // The editing lifecycle for the tag
+        if (ImGui::IsItemActivated()) {
+            initialTag = selectedObject->tag;
+        }
+
+        if (ImGui::IsItemActive()) {
+            selectedObject->tag = std::string(tagBuffer); 
+        }
+
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            std::string finalTag = std::string(tagBuffer);
+            
+            if (initialTag != finalTag) {
+                // Keep the new tag
+                selectedObject->tag = finalTag;
+                
+                CommandHistory::AddCommand(std::make_unique<ChangeTagCommand>(selectedObject, initialTag, finalTag));
+            }
+        } 
+        else if (ImGui::IsItemDeactivated() && ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+            // Revert changes if the user presses Escape while editing
+            selectedObject->tag = initialTag;
         }
 
         ImGui::Separator();
