@@ -317,6 +317,9 @@ void Animator2d::OnInspector() {
                 
                 // Push the modification to the Undo/Redo stack immediately
                 CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+
+                ImGui::PopID();
+                break;
             }
             
             // Show a small tooltip with animation details when hovering
@@ -376,7 +379,7 @@ void Animator2d::OnInspector() {
                 
                 ImGui::PopStyleColor();
                 ImGui::PopID();
-                continue; // Skip the rest and go to next iteration
+                break;
             }
             ImGui::PopStyleColor();
 
