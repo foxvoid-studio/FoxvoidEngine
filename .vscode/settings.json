@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "*.scene": "json",
-        "*.prefab": "json"
+        "*.prefab": "json",
+        "todo": "yaml"
     }
 }
