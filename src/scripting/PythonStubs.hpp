@@ -148,7 +148,42 @@ class Vector2:
     """A 2D vector representing mathematical points or directions."""
     x: float
     y: float
-    def __init__(self, x: float = 0.0, y: float = 0.0) -> None: ...
+    
+    def __init__(self, x: float = 0.0, y: float = 0.0) -> None:
+        """Initializes the vector with the given x and y coordinates."""
+        ...
+
+    def __add__(self, other: 'Vector2') -> 'Vector2':
+        """Adds another Vector2 to this one and returns a new Vector2."""
+        ...
+
+    def __sub__(self, other: 'Vector2') -> 'Vector2':
+        """Subtracts another Vector2 from this one and returns a new Vector2."""
+        ...
+
+    def __mul__(self, scalar: float) -> 'Vector2':
+        """Multiplies the vector by a scalar value and returns a new Vector2."""
+        ...
+
+    def __truediv__(self, scalar: float) -> 'Vector2':
+        """Divides the vector by a scalar value and returns a new Vector2. Prevents division by zero."""
+        ...
+
+    def length(self) -> float:
+        """Calculates and returns the magnitude (length) of the vector."""
+        ...
+
+    def distance_to(self, other: 'Vector2') -> float:
+        """Calculates the exact distance between this vector and another Vector2."""
+        ...
+
+    def normalized(self) -> 'Vector2':
+        """Returns a new Vector2 with a length of exactly 1.0 (maintaining the same direction)."""
+        ...
+
+    def __repr__(self) -> str:
+        """Returns a string representation of the vector for debugging (e.g., 'Vector2(1.0, 2.5)')."""
+        ...
 
 
 class Rectangle:

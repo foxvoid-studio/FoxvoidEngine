@@ -1,5 +1,6 @@
 #include "scripting/ScriptBindings.hpp"
 #include <raylib.h>
+#include <raymath.h>
 #include <iostream>
 #include <pybind11/stl.h>
 #include "world/GameObject.hpp"
@@ -20,7 +21,39 @@ void BindMathAndPhysics(py::module_& m) {
         .def(py::init<float, float>(), py::arg("x"), py::arg("y")) // Constructor with params
         // def_readwrite exposes the public member variable directly with direct memory access
         .def_readwrite("x", &Vector2::x)
-        .def_readwrite("y", &Vector2::y);
+        .def_readwrite("y", &Vector2::y)
+
+        // Operator Overloading for Python (+, -, *, /)
+        .def("__add__", [](const Vector2& a, const Vector2& b) {
+            return Vector2Add(a, b);
+        })
+        .def("__sub__", [](const Vector2& a, const Vector2& b) {
+            return Vector2Subtract(a, b);
+        })
+        .def("__mul__", [](const Vector2& a, float scalar) {
+            return Vector2Scale(a, scalar); // Multiply Vector by a float
+        })
+        .def("__truediv__", [](const Vector2& a, float scalar) {
+            // Prevent division by zero
+            if (scalar == 0.0f) return a;
+            return Vector2Scale(a, 1.0f / scalar); 
+        })
+
+        // Utility Methods (Executed in fast C++)
+        .def("length", [](const Vector2& a) {
+            return Vector2Length(a);
+        })
+        .def("distance_to", [](const Vector2& a, const Vector2& b) {
+            return Vector2Distance(a, b);
+        })
+        .def("normalized", [](const Vector2& a) {
+            return Vector2Normalize(a);
+        })
+        
+        // String representation for easy debugging in Python (print(my_vec))
+        .def("__repr__", [](const Vector2& a) {
+            return "Vector2(" + std::to_string(a.x) + ", " + std::to_string(a.y) + ")";
+        });
 
     py::class_<Rectangle>(m, "Rectangle")
         .def(py::init<>())
