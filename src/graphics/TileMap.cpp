@@ -128,11 +128,51 @@ void TileMap::OnInspector() {
         EditorUI::DragFloat2("Tile Size", &tileSize.x, 1.0f, this, 1.0f, 256.0f);
         EditorUI::DragInt("Tile Spacing", &tileSpacing, 1, this, 0, 64);
 
-        int newWidth = gridWidth;
-        int newHeight = gridHeight;
+        // Grid width
+        // Static variable to hold the temporary value while the user is dragging the mouse.
+        // This prevents the map from resizing (and destroying data) 60 times a second.
+        static int tempWidth = gridWidth;
         
-        if (ImGui::DragInt("Grid Width", &newWidth, 1, 1, 1000)) ResizeMap(newWidth, gridHeight);
-        if (ImGui::DragInt("Grid Height", &newHeight, 1, 1, 1000)) ResizeMap(gridWidth, newHeight);
+        // Draw the interactive UI element using the temporary variable
+        ImGui::DragInt("Grid Width", &tempWidth, 1, 1, 1000);
+        
+        // Trigger the heavy map resize ONLY when the mouse click is released (or Enter is pressed)
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            if (tempWidth != gridWidth) {
+                // Save the current state before modifying it for the Undo/Redo history
+                nlohmann::json initialState = Serialize();
+                
+                ResizeMap(tempWidth, gridHeight);
+                
+                // Commit the action to the command history
+                CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+            }
+        }
+        
+        // Resynchronize the displayed UI value with the actual map value
+        // ONLY if the user is not currently clicking/dragging the widget.
+        // This ensures external resizes (like pressing Ctrl+Z) update the slider correctly.
+        if (!ImGui::IsItemActive()) {
+            tempWidth = gridWidth;
+        }
+
+        // Grid height
+        static int tempHeight = gridHeight;
+        ImGui::DragInt("Grid Height", &tempHeight, 1, 1, 1000);
+        
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            if (tempHeight != gridHeight) {
+                nlohmann::json initialState = Serialize();
+                
+                ResizeMap(gridWidth, tempHeight);
+                
+                CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+            }
+        }
+        
+        if (!ImGui::IsItemActive()) {
+            tempHeight = gridHeight;
+        }
         
         // Dynamically fetch the current path from the registry for the UI
         std::string currentPath = "";
