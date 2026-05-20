@@ -22,6 +22,17 @@ struct TileLayer {
     }
 };
 
+// Represents a single texture atlas (Tileset) mapped to a specific range of global IDs
+struct Tileset {
+    std::string name;
+    UUID uuid = 0;
+    Texture2D texture = {0};
+
+    int firstTileID = 0; // The starting global ID for this specific tileset
+    int tileCount = 0;   // Total number of tiles in this texture
+    int columns = 0;     // Cached for fast math during rendering
+};
+
 class TileMap : public Component {
     public:
         Vector2 tileSize; // Size of a single tile in pixels (e.g., 16x16, 32x32)
@@ -48,9 +59,17 @@ class TileMap : public Component {
 
         // TileMap Operations
 
-        // Loads a new tileset texture from the disk
-        void LoadTileset(const std::string& path);
-        void LoadTileset(UUID uuid);
+        // Appends a new tileset to the map and calculates its ID range
+        void AddTileset(UUID uuid);
+
+        // Adds a new tileset using a file path (Used by Python bindings)
+        void AddTileset(const std::string& path);
+
+        // Returns a read-only list of all loaded tilesets (Used by the Palette Panel)
+        const std::vector<Tileset>& GetTilesets() const { return m_tilesets; }
+        
+        // Clears all tilesets and unloads textures
+        void ClearTilesets();
 
         // Safely resizes the map without losing existing tile data
         void ResizeMap(int newWidth, int newHeight);
@@ -63,9 +82,6 @@ class TileMap : public Component {
 
         // Sets a tile ID on a specific layer
         void SetTile(int layerIndex, int x, int y, int tileID);
-
-        // Returns the active texture
-        Texture2D GetTexture() const { return m_tilesetTexture; }
 
         // Allows commands to save and restore full layer states
         std::vector<int> GetLayerData(int layerIndex) const;
@@ -85,9 +101,7 @@ class TileMap : public Component {
         TileLayer* GetLayer(const std::string& name);
 
     private:
-        UUID m_tilesetUUID = 0;
-        
-        Texture2D m_tilesetTexture;
+        std::vector<Tileset> m_tilesets;
         std::vector<TileLayer> m_layers;
 
         // Helper to safely access 1D vector as 2D

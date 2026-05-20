@@ -174,6 +174,12 @@ void BindGraphics(py::module_& m) {
         .def_readwrite("is_visible", &TileLayer::isVisible)
         .def_readwrite("is_solid", &TileLayer::isSolid);
 
+    py::class_<Tileset>(m, "Tileset")
+        .def_readonly("name", &Tileset::name)
+        .def_readonly("first_tile_id", &Tileset::firstTileID)
+        .def_readonly("tile_count", &Tileset::tileCount)
+        .def_readonly("columns", &Tileset::columns);
+
     py::class_<TileMap, Component>(m, "TileMap")
         .def(py::init<>())
         // Expose public properties
@@ -181,7 +187,9 @@ void BindGraphics(py::module_& m) {
         .def_readwrite("grid_height", &TileMap::gridHeight)
         .def_readwrite("tile_spacing", &TileMap::tileSpacing)
         // Expose public methods
-        .def("load_tileset", py::overload_cast<const std::string&>(&TileMap::LoadTileset))
+        .def("add_tileset", py::overload_cast<const std::string&>(&TileMap::AddTileset))
+        .def("clear_tilesets", &TileMap::ClearTilesets)
+        .def("get_tilesets", &TileMap::GetTilesets, py::return_value_policy::reference_internal)
         .def("resize", &TileMap::ResizeMap)
         .def("add_layer", &TileMap::AddLayer)
         .def("get_tile", &TileMap::GetTile)

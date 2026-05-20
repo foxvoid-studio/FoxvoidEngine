@@ -8,24 +8,27 @@
 #include "extras/IconsFontAwesome6.h"
 #endif
 
-TilePalettePanel::TilePalettePanel() : m_zoom(2.0f) {}
+TilePalettePanel::TilePalettePanel() : m_zoom(2.0f), m_selectedTilesetIndex(0) {}
 
 void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileMap* activeTileMap) {
     if (!isOpen) return;
 
     if (ImGui::Begin("Tile Palette", &isOpen)) {
-        // If no TileMap is selected, or it has no texture, stop drawing the palette
-        if (!activeTileMap || activeTileMap->GetTexture().id == 0) {
-            ImGui::TextDisabled("No tileset texture loaded.");
+        // If no TileMap is selected, or it has no tilesets, stop drawing the palette
+        if (!activeTileMap || activeTileMap->GetTilesets().empty()) {
+            ImGui::TextDisabled("No tilesets loaded.");
             ImGui::End();
             return;
         }
 
         const auto& layers = activeTileMap->GetLayers();
+        const auto& tilesets = activeTileMap->GetTilesets();
 
-        // Safety clamp just in case a layer was deleted
+        // Safety clamps just in case a layer or tileset was deleted
         if (selectedLayer >= layers.size()) selectedLayer = 0;
+        if (m_selectedTilesetIndex >= tilesets.size()) m_selectedTilesetIndex = 0;
 
+        // --- Layer Selection ---
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
         if (ImGui::BeginCombo("##LayerCombo", layers.empty() ? "No Layers" : layers[selectedLayer].name.c_str())) {
             for (int i = 0; i < layers.size(); i++) {
@@ -39,8 +42,23 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileMap* ac
         }
         ImGui::Separator();
 
-        // Extract properties from the active TileMap for the rest of the drawing
-        Texture2D currentTileset = activeTileMap->GetTexture();
+        // --- Tileset Selection (New Dropdown) ---
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (ImGui::BeginCombo("##TilesetCombo", tilesets[m_selectedTilesetIndex].name.c_str())) {
+            for (int i = 0; i < tilesets.size(); i++) {
+                bool isSelected = (m_selectedTilesetIndex == i);
+                if (ImGui::Selectable(tilesets[i].name.c_str(), isSelected)) {
+                    m_selectedTilesetIndex = i; 
+                }
+                if (isSelected) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::Separator();
+
+        // Extract properties from the currently viewed tileset
+        const auto& activeTileset = tilesets[m_selectedTilesetIndex];
+        Texture2D currentTileset = activeTileset.texture;
         Vector2 tileSize = activeTileMap->tileSize;
         int tileSpacing = activeTileMap->tileSpacing;
 
@@ -73,12 +91,12 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileMap* ac
 
         ImGui::Separator();
 
-        // Display the currently selected Tile ID
+        // Display the currently selected Tile ID (Global ID)
         if (selectedTileID == -1) {
             ImGui::TextDisabled("Tile: None");
         }
         else {
-            ImGui::Text("Tile: %d", selectedTileID);
+            ImGui::Text("Tile (Global ID): %d", selectedTileID);
         }
 
         ImGui::Separator();
@@ -87,71 +105,87 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileMap* ac
         // We use a child window to allow scrolling if the tileset is large
         ImGui::BeginChild("PaletteRegion", ImVec2(0, 0), true, ImGuiWindowFlags_HorizontalScrollbar);
 
-        float displayWidth = currentTileset.width * m_zoom;
-        float displayHeight = currentTileset.height * m_zoom;
+        // Safety check in case the texture failed to load but the tileset entry exists
+        if (currentTileset.id != 0) {
+            float displayWidth = currentTileset.width * m_zoom;
+            float displayHeight = currentTileset.height * m_zoom;
 
-        // Save the start position of the image in screen coordinates
-        ImVec2 screenPos = ImGui::GetCursorScreenPos();
+            // Save the start position of the image in screen coordinates
+            ImVec2 screenPos = ImGui::GetCursorScreenPos();
 
-        // Draw the tileset texture
-        rlImGuiImageSize(&currentTileset, (int)displayWidth, (int)displayHeight);
+            // Draw the tileset texture
+            rlImGuiImageSize(&currentTileset, (int)displayWidth, (int)displayHeight);
 
-        // Interaction logic
-        bool isHovered = ImGui::IsItemHovered();
-        
-        int stepPxX = (int)tileSize.x + tileSpacing;
-        int stepPxY = (int)tileSize.y + tileSpacing;
-        int cols = (currentTileset.width + tileSpacing) / stepPxX;
-        int rows = (currentTileset.height + tileSpacing) / stepPxY;
-
-        ImDrawList* drawList = ImGui::GetWindowDrawList();
-        ImU32 gridColor = IM_COL32(200, 200, 200, 60);
-
-        // Draw individual tile boxes (skipping the spacing gaps)
-        for (int y = 0; y < rows; y++) {
-            for (int x = 0; x < cols; x++) {
-                ImVec2 p_min = ImVec2(screenPos.x + (x * stepPxX * m_zoom), screenPos.y + (y * stepPxY * m_zoom));
-                ImVec2 p_max = ImVec2(p_min.x + (tileSize.x * m_zoom), p_min.y + (tileSize.y * m_zoom));
-                drawList->AddRect(p_min, p_max, gridColor);
-            }
-        }
-
-        // Selection Logic
-        if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-            ImVec2 mousePos = ImGui::GetMousePos();
+            // Interaction logic
+            bool isHovered = ImGui::IsItemHovered();
             
-            // Calculate local position in standard unzoomed pixels
-            int localX = (int)((mousePos.x - screenPos.x) / m_zoom);
-            int localY = (int)((mousePos.y - screenPos.y) / m_zoom);
+            int stepPxX = (int)tileSize.x + tileSpacing;
+            int stepPxY = (int)tileSize.y + tileSpacing;
+            
+            // Prevent division by zero
+            if (stepPxX > 0 && stepPxY > 0) {
+                int cols = (currentTileset.width + tileSpacing) / stepPxX;
+                int rows = (currentTileset.height + tileSpacing) / stepPxY;
 
-            int gridX = localX / stepPxX;
-            int gridY = localY / stepPxY;
+                ImDrawList* drawList = ImGui::GetWindowDrawList();
+                ImU32 gridColor = IM_COL32(200, 200, 200, 60);
 
-            // Modulo math to check if the click fell inside the spacing gap (dead zone)
-            int modX = localX % stepPxX;
-            int modY = localY % stepPxY;
+                // Draw individual tile boxes (skipping the spacing gaps)
+                for (int y = 0; y < rows; y++) {
+                    for (int x = 0; x < cols; x++) {
+                        ImVec2 p_min = ImVec2(screenPos.x + (x * stepPxX * m_zoom), screenPos.y + (y * stepPxY * m_zoom));
+                        ImVec2 p_max = ImVec2(p_min.x + (tileSize.x * m_zoom), p_min.y + (tileSize.y * m_zoom));
+                        drawList->AddRect(p_min, p_max, gridColor);
+                    }
+                }
 
-            // Only select the tile if we clicked inside the actual tile area
-            if (modX < (int)tileSize.x && modY < (int)tileSize.y && gridX < cols && gridY < rows) {
-                selectedTileID = gridY * cols + gridX;
+                // Selection Logic
+                if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                    ImVec2 mousePos = ImGui::GetMousePos();
+                    
+                    // Calculate local position in standard unzoomed pixels
+                    int localX = (int)((mousePos.x - screenPos.x) / m_zoom);
+                    int localY = (int)((mousePos.y - screenPos.y) / m_zoom);
+
+                    int gridX = localX / stepPxX;
+                    int gridY = localY / stepPxY;
+
+                    // Modulo math to check if the click fell inside the spacing gap (dead zone)
+                    int modX = localX % stepPxX;
+                    int modY = localY % stepPxY;
+
+                    // Only select the tile if we clicked inside the actual tile area
+                    if (modX < (int)tileSize.x && modY < (int)tileSize.y && gridX < cols && gridY < rows) {
+                        int localTileID = gridY * cols + gridX;
+                        
+                        // Crucial: Add the tileset offset to get the Global ID
+                        selectedTileID = activeTileset.firstTileID + localTileID;
+                    }
+                }
+
+                // Visual feedback: Draw a thick white rectangle around the selected tile
+                // ONLY if the selected Global ID belongs to the currently viewed tileset
+                if (selectedTileID >= activeTileset.firstTileID && selectedTileID < activeTileset.firstTileID + activeTileset.tileCount) {
+                    
+                    // Convert Global ID back to Local ID to draw the highlight correctly
+                    int localSelID = selectedTileID - activeTileset.firstTileID;
+                    int selX = localSelID % cols;
+                    int selY = localSelID / cols;
+
+                    ImVec2 rectMin = {
+                        screenPos.x + (selX * stepPxX * m_zoom),
+                        screenPos.y + (selY * stepPxY * m_zoom)
+                    };
+                    ImVec2 rectMax = {
+                        rectMin.x + (tileSize.x * m_zoom),
+                        rectMin.y + (tileSize.y * m_zoom)
+                    };
+
+                    drawList->AddRect(rectMin, rectMax, IM_COL32(255, 255, 255, 255), 0.0f, 0, 2.5f);
+                }
             }
-        }
-
-        // Visual feedback: Draw a thick white rectangle around the selected tile
-        if (selectedTileID >= 0) {
-            int selX = selectedTileID % cols;
-            int selY = selectedTileID / cols;
-
-            ImVec2 rectMin = {
-                screenPos.x + (selX * stepPxX * m_zoom),
-                screenPos.y + (selY * stepPxY * m_zoom)
-            };
-            ImVec2 rectMax = {
-                rectMin.x + (tileSize.x * m_zoom),
-                rectMin.y + (tileSize.y * m_zoom)
-            };
-
-            drawList->AddRect(rectMin, rectMax, IM_COL32(255, 255, 255, 255), 0.0f, 0, 2.5f);
+        } else {
+            ImGui::TextDisabled("Invalid Texture");
         }
 
         ImGui::EndChild();

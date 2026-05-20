@@ -757,10 +757,34 @@ class TileLayer:
     """Determines if the layer generates collision boxes for the physics engine."""
 
 
+class Tileset:
+    """Represents a texture atlas loaded into a TileMap. Read-only."""
+    
+    @property
+    def name(self) -> str:
+        """The name of the tileset (usually the filename)."""
+        ...
+        
+    @property
+    def first_tile_id(self) -> int:
+        """The starting Global ID for the first tile of this specific texture."""
+        ...
+        
+    @property
+    def tile_count(self) -> int:
+        """The total number of tiles contained in this texture."""
+        ...
+        
+    @property
+    def columns(self) -> int:
+        """The number of columns of tiles in this texture."""
+        ...
+
+
 class TileMap(Component):
     """
-    Manages a grid-based tile map with multiple layers and physics collision support.
-    Useful for level design and procedural generation.
+    Manages a grid-based tile map with multiple layers, multi-tileset support, 
+    and physics collision. Useful for level design and procedural generation.
     """
     
     grid_width: int
@@ -770,15 +794,29 @@ class TileMap(Component):
     """The number of rows in the grid."""
     
     tile_spacing: int
-    """The gap in pixels between each tile in the source texture."""
+    """The gap in pixels between each tile in the source textures."""
 
     def __init__(self) -> None:
         """Initializes a new TileMap with a default 'Background' layer."""
         ...
 
-    def load_tileset(self, path: str) -> None:
+    def add_tileset(self, path: str) -> None:
         """
-        Loads a tileset texture from the specified file path.
+        Appends a new tileset texture from the specified file path.
+        The tileset is assigned a specific range of Global IDs based on its size.
+        """
+        ...
+
+    def clear_tilesets(self) -> None:
+        """
+        Clears all loaded tilesets and frees the associated texture memory.
+        """
+        ...
+
+    def get_tilesets(self) -> List[Tileset]:
+        """
+        Returns a list of all currently loaded Tilesets. 
+        Useful for retrieving the 'first_tile_id' ranges during procedural generation.
         """
         ...
         
@@ -796,15 +834,15 @@ class TileMap(Component):
 
     def get_tile(self, layer_index: int, x: int, y: int) -> int:
         """
-        Returns the tile ID at the given grid coordinates.
+        Returns the Global Tile ID at the given grid coordinates.
         Returns -1 if the tile is empty or if the coordinates are out of bounds.
         """
         ...
 
-    def set_tile(self, layer_index: int, x: int, y: int, tile_id: int) -> None:
+    def set_tile(self, layer_index: int, x: int, y: int, global_tile_id: int) -> None:
         """
-        Sets the tile ID at the given grid coordinates on a specific layer.
-        Use -1 as the tile_id to erase a tile.
+        Sets the Global Tile ID at the given grid coordinates on a specific layer.
+        Use -1 as the global_tile_id to erase a tile.
         """
         ...
 
@@ -1312,5 +1350,57 @@ class TextInput(Component):
         Example: self.input.set_font("assets/fonts/arial.ttf")
         """
         ...
-        
+
+
+class PolygonCollider(Component):
+    """
+    A custom polygonal shape collider.
+    Warning: The shape MUST be convex (no hollow parts/indentations),
+    and the vertices should ideally be defined in a clockwise order.
+    """
+    local_vertices: list[Vector2]
+    offset: Vector2
+    is_trigger: bool
+
+    def __init__(self) -> None: 
+        """
+        Initializes a PolygonCollider with a default triangle shape.
+        """
+        ...
+
+class CircleCollider(Component):
+    """
+    A perfect circle collider.
+    Ideal for characters and rolling objects to prevent
+    snagging on TileMap corners.
+    """
+    radius: float
+    offset: Vector2
+    is_trigger: bool
+
+    def __init__(self, radius: float = 25.0) -> None: 
+        """
+        Initializes a CircleCollider with a given radius.
+        """
+        ...
+
+
+class CapsuleCollider(Component):
+    """
+    A capsule-shaped collider, consisting of a cylinder with hemispherical ends.
+    This is the industry standard shape for 2D character controllers as it slides
+    smoothly over small bumps and does not catch on tile edges.
+    """
+    radius: float
+    height: float
+    offset: Vector2
+    is_trigger: bool
+
+    def __init__(self, radius: float = 25.0, height: float = 50.0) -> None: 
+        """
+        Initializes a CapsuleCollider. The height is the total vertical span
+        and cannot be strictly smaller than radius * 2.
+        """
+        ...
+ 
 )";

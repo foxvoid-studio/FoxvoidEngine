@@ -14,4 +14,7 @@ class TilePalettePanel {
 
     private:
         float m_zoom = 1.0f;
+
+        // Tracks which tileset is currently visible in the palette
+        int m_selectedTilesetIndex = 0;
 };

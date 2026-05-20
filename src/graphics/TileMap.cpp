@@ -11,109 +11,128 @@
 #include <core/AssetRegistry.hpp>
 
 TileMap::TileMap()
-    : tileSize { 32.0f, 32.0f }, tileSpacing(0), gridWidth(10), gridHeight(10), m_tilesetTexture{0}
+    : tileSize { 32.0f, 32.0f }, tileSpacing(0), gridWidth(10), gridHeight(10)
 {
     // By default, create a single base layer
     AddLayer("Background");
 }
 
 TileMap::~TileMap() {
-    if (m_tilesetTexture.id != 0) {
-        UnloadTexture(m_tilesetTexture);
+    ClearTilesets();
+}
+
+void TileMap::ClearTilesets() {
+    for (auto& ts : m_tilesets) {
+        if (ts.texture.id != 0) {
+            UnloadTexture(ts.texture);
+        }
     }
+    m_tilesets.clear();
 }
 
 std::string TileMap::GetName() const {
     return "Tile Map";
 }
 
-void TileMap::LoadTileset(const std::string& path) {
-    if (path.empty()) {
-        LoadTileset(UUID(0));
-        return;
+void TileMap::AddTileset(UUID uuid) {
+    if (uuid == 0) return;
+
+    // Prevent adding the exact same tileset twice
+    for (const auto& existingTs : m_tilesets) {
+        if (existingTs.uuid == uuid) return;
     }
+
+    std::string path = AssetRegistry::GetPathForUUID(uuid).string();
+    if (path.empty()) return;
+
+    Texture2D tex = Graphics::LoadTextureFiltered(path);
+    if (tex.id == 0) return;
+
+    int stepX = (int)tileSize.x + tileSpacing;
+    int stepY = (int)tileSize.y + tileSpacing;
+    if (stepX <= 0 || stepY <= 0) return;
+
+    Tileset ts;
+    ts.uuid = uuid;
+    ts.texture = tex;
+    ts.name = std::filesystem::path(path).stem().string();
     
-    // Resolve UI path to UUID
-    UUID assetId = AssetRegistry::GetUUIDForPath(path);
-    LoadTileset(assetId);
+    // Cache the grid dimensions of this specific texture
+    ts.columns = (tex.width + tileSpacing) / stepX;
+    int rows = (tex.height + tileSpacing) / stepY;
+    ts.tileCount = ts.columns * rows;
+
+    // Calculate the Global ID offset for this tileset
+    if (m_tilesets.empty()) {
+        ts.firstTileID = 0;
+    } else {
+        const auto& lastTs = m_tilesets.back();
+        ts.firstTileID = lastTs.firstTileID + lastTs.tileCount;
+    }
+
+    m_tilesets.push_back(ts);
 }
 
-void TileMap::LoadTileset(UUID uuid) {
-    m_tilesetUUID = uuid;
-
-    if (m_tilesetUUID != 0) {
-        std::string resolvedPath = AssetRegistry::GetPathForUUID(m_tilesetUUID).string();
-        
-        if (!resolvedPath.empty()) {
-            // We use Graphics::LoadTextureFiltered to ensure the tilemap renders correctly without blur
-            m_tilesetTexture = Graphics::LoadTextureFiltered(resolvedPath);
-        } else {
-            std::cerr << "[TileMap] Error: Could not resolve UUID " << (uint64_t)m_tilesetUUID << " to a valid path!" << std::endl;
-            m_tilesetTexture.id = 0;
-        }
-    }
-    else {
-        // If the UUID is 0 (cleared), just clear the local struct to stop rendering
-        m_tilesetTexture.id = 0;
-    }
+void TileMap::AddTileset(const std::string& path) {
+    if (path.empty()) return;
+    
+    // Resolve the path to a UUID and call the main method
+    UUID assetId = AssetRegistry::GetUUIDForPath(path);
+    AddTileset(assetId);
 }
 
 void TileMap::Render() {
-    // Safety checks
-    if (m_tilesetTexture.id == 0 || m_layers.empty() || !owner) return;
+    if (m_tilesets.empty() || m_layers.empty() || !owner) return;
 
     auto transform = owner->GetComponent<Transform2d>();
     if (!transform) return;
 
     int stepX = (int)tileSize.x + tileSpacing;
     int stepY = (int)tileSize.y + tileSpacing;
-
-    // Safety check: Prevent division by zero
     if (stepX <= 0 || stepY <= 0) return;
-
-    // Calculate how many columns the tileset texture has
-    // +tileSpacing handles the edge case where the right/bottom edge of the image doesn't have a final padding
-    int tilesetCols = (m_tilesetTexture.width + tileSpacing) / stepX;
-    if (tilesetCols == 0) return; // Prevent division by zero if texture is too small
 
     // Loop through all layers from bottom to top
     for (const auto& layer : m_layers) {
         if (!layer.isVisible) continue;
 
-        // Loop through the grid
-        for (int y = 0; y < gridHeight; ++y) {
-            for (int x = 0; x < gridWidth; ++x) {
-                int index = y * gridWidth + x;
+        // OPTIMIZATION: Group Draw Calls by Texture!
+        // We iterate over the tilesets FIRST. Raylib will auto-batch all DrawTexturePro 
+        // calls into a single OpenGL draw call as long as the texture doesn't change.
+        for (const auto& tileset : m_tilesets) {
+            if (tileset.texture.id == 0 || tileset.columns <= 0) continue;
 
-                if (index >= layer.data.size()) continue;
-                
-                int tileID = layer.data[index];
-                if (tileID < 0) continue; // -1 represents an empty (transparent) tile
+            for (int y = 0; y < gridHeight; ++y) {
+                for (int x = 0; x < gridWidth; ++x) {
+                    int index = y * gridWidth + x;
+                    if (index >= layer.data.size()) continue;
+                    
+                    int globalID = layer.data[index];
+                    
+                    // Skip empty tiles OR tiles that don't belong to the CURRENT tileset
+                    if (globalID < tileset.firstTileID || globalID >= tileset.firstTileID + tileset.tileCount) {
+                        continue; 
+                    }
 
-                // Calculate where to read the tile from the texture (Source Rectangle) using the step sizes
-                float srcX = (float)((tileID % tilesetCols) * stepX);
-                float srcY = (float)((tileID / tilesetCols) * stepY);
+                    // Convert Global ID back to Local ID for this specific texture
+                    int localID = globalID - tileset.firstTileID;
 
-                Rectangle srcRec = { srcX, srcY, tileSize.x, tileSize.y };
+                    float srcX = (float)((localID % tileset.columns) * stepX);
+                    float srcY = (float)((localID / tileset.columns) * stepY);
 
-                // Calculate where to draw the tile in the world (Destination Rectangle)
-                // We round the coordinates to avoid sub-pixel positioning
-                auto position = transform->GetGlobalPosition();
-                float dstX = std::round(position.x + (x * tileSize.x * transform->scale.x));
-                float dstY = std::round(position.y + (y * tileSize.y * transform->scale.y));
-                
-                // We use ceil to slightly force the width/height to the upper pixel
-                // This completely eliminates floating-point hairline cracks between tiles
-                float dstWidth = std::ceil(tileSize.x * transform->scale.x);
-                float dstHeight = std::ceil(tileSize.y * transform->scale.y);
-                
-                Rectangle dstRec = { dstX, dstY, dstWidth, dstHeight };
+                    Rectangle srcRec = { srcX, srcY, tileSize.x, tileSize.y };
 
-                // We don't want each individual tile to rotate around its own center, 
-                // so origin is 0,0. (For full map rotation, logic would be more complex)
-                Vector2 origin = { 0.0f, 0.0f };
+                    auto position = transform->GetGlobalPosition();
+                    float dstX = std::round(position.x + (x * tileSize.x * transform->scale.x));
+                    float dstY = std::round(position.y + (y * tileSize.y * transform->scale.y));
+                    
+                    float dstWidth = std::ceil(tileSize.x * transform->scale.x);
+                    float dstHeight = std::ceil(tileSize.y * transform->scale.y);
+                    
+                    Rectangle dstRec = { dstX, dstY, dstWidth, dstHeight };
+                    Vector2 origin = { 0.0f, 0.0f };
 
-                DrawTexturePro(m_tilesetTexture, srcRec, dstRec, origin, transform->rotation, WHITE);
+                    DrawTexturePro(tileset.texture, srcRec, dstRec, origin, transform->rotation, WHITE);
+                }
             }
         }
     }
@@ -174,26 +193,28 @@ void TileMap::OnInspector() {
             tempHeight = gridHeight;
         }
         
-        // Dynamically fetch the current path from the registry for the UI
-        std::string currentPath = "";
-        if (m_tilesetUUID != 0) {
-            currentPath = AssetRegistry::GetPathForUUID(m_tilesetUUID).string();
-        }
-        
-        static char pathBuffer[256];
-        strncpy(pathBuffer, currentPath.c_str(), sizeof(pathBuffer));
-        pathBuffer[sizeof(pathBuffer) - 1] = '\0';
-        
-        if (ImGui::InputText("Tileset Path", pathBuffer, sizeof(pathBuffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
-            std::string newPath(pathBuffer);
-            if (newPath != currentPath) {
-                nlohmann::json initialState = Serialize();
-                LoadTileset(newPath); // Will translate path to UUID
-                CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
-            }
+        ImGui::Spacing();
+        ImGui::SeparatorText("Tilesets");
+
+        // Display loaded tilesets
+        for (size_t i = 0; i < m_tilesets.size(); ++i) {
+            ImGui::PushID(static_cast<int>(i));
+            const auto& ts = m_tilesets[i];
+            
+            ImGui::TextColored(ImVec4(0.4f, 0.8f, 0.4f, 1.0f), "%s", ts.name.c_str());
+            ImGui::SameLine();
+            ImGui::TextDisabled("(IDs: %d - %d)", ts.firstTileID, ts.firstTileID + ts.tileCount - 1);
+            
+            // To properly remove a tileset in the future, you'd need to shift all subsequent IDs in the layers.
+            // For now, displaying them is the priority.
+            
+            ImGui::PopID();
         }
 
-        // Drag and Drop support for the tileset path
+        ImGui::Spacing();
+
+        // Drop zone for new tilesets
+        ImGui::Button("Drop new Tileset Image here", ImVec2(-1, 30));
         if (ImGui::BeginDragDropTarget()) {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
                 std::string droppedPath = (const char*)payload->Data;
@@ -203,15 +224,13 @@ void TileMap::OnInspector() {
                 
                 if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp") {
                     nlohmann::json initialState = Serialize();
-                    LoadTileset(droppedPath);
+                    
+                    AddTileset(AssetRegistry::GetUUIDForPath(droppedPath));
+                    
                     CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
                 }
             }
             ImGui::EndDragDropTarget();
-        }
-
-        if (m_tilesetUUID != 0) {
-            ImGui::TextDisabled("UUID: %llu", (uint64_t)m_tilesetUUID);
         }
     }
 
@@ -222,7 +241,7 @@ void TileMap::OnInspector() {
         }
 
         for (size_t i = 0; i < m_layers.size(); ++i) {
-            ImGui::PushID(i);
+            ImGui::PushID(static_cast<int>(i));
 
             // UI layout for Layer controls
             ImGui::Checkbox("Vis", &m_layers[i].isVisible);
@@ -286,12 +305,18 @@ void TileMap::ResizeMap(int newWidth, int newHeight) {
 nlohmann::json TileMap::Serialize() const {
     nlohmann::json j;
     j["type"] = "TileMap";
-    j["tilesetUUID"] = (uint64_t)m_tilesetUUID;
     j["tileSize"] = { tileSize.x, tileSize.y };
     j["tileSpacing"] = tileSpacing;
     j["gridWidth"] = gridWidth;
     j["gridHeight"] = gridHeight;
     j["showGrid"] = showGrid;
+
+    // Save all tilesets
+    nlohmann::json tilesetsArray = nlohmann::json::array();
+    for (const auto& ts : m_tilesets) {
+        tilesetsArray.push_back((uint64_t)ts.uuid);
+    }
+    j["tilesets"] = tilesetsArray;
 
     nlohmann::json layersArray = nlohmann::json::array();
     for (const auto& layer : m_layers) {
@@ -308,30 +333,29 @@ nlohmann::json TileMap::Serialize() const {
 }
 
 void TileMap::Deserialize(const nlohmann::json& j) {
-    // Safely extract the tileSize array
     if (j.contains("tileSize") && j["tileSize"].is_array() && j["tileSize"].size() == 2) {
         tileSize.x = j["tileSize"][0];
         tileSize.y = j["tileSize"][1];
     } else {
-        // Fallback defaults
-        tileSize.x = 32.0f;
-        tileSize.y = 32.0f;
+        tileSize.x = 32.0f; tileSize.y = 32.0f;
     }
 
     tileSpacing = j.value("tileSpacing", 0);
-
-    // Extract standard values using correct default fallbacks
     gridWidth = j.value("gridWidth", 10);
     gridHeight = j.value("gridHeight", 10);
-
     showGrid = j.value("showGrid", true);
     
-    // Backward compatibility for loading the texture
+    ClearTilesets();
+
+    // Backward compatibility for old single-tileset maps
     if (j.contains("tilesetUUID")) {
-        LoadTileset(UUID(j["tilesetUUID"].get<uint64_t>()));
+        AddTileset(UUID(j["tilesetUUID"].get<uint64_t>()));
     } 
-    else if (j.contains("tilesetPath")) {
-        LoadTileset(j["tilesetPath"].get<std::string>());
+    // New multi-tileset loading
+    else if (j.contains("tilesets") && j["tilesets"].is_array()) {
+        for (const auto& tsUUID : j["tilesets"]) {
+            AddTileset(UUID(tsUUID.get<uint64_t>()));
+        }
     }
 
     m_layers.clear();
@@ -341,7 +365,6 @@ void TileMap::Deserialize(const nlohmann::json& j) {
             layer.isVisible = layerJson.value("isVisible", true);
             layer.isSolid = layerJson.value("isSolid", false);
             
-            // Safely copy the JSON array into the vector
             if (layerJson.contains("data") && layerJson["data"].is_array()) {
                 layer.data = layerJson["data"].get<std::vector<int>>();
             }
