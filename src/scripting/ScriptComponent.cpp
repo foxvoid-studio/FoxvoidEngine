@@ -346,7 +346,45 @@ void ScriptComponent::OnInspector() {
         auto DrawPythonVariable = [&](const std::string& key, py::object value) {
             if (py::isinstance<Component>(value)) return;
 
-            if (py::isinstance<py::float_>(value)) {
+            // Fetch the Python class of the variable
+            py::object cls = value.attr("__class__");
+
+            // 1. Check for Enums FIRST!
+            // (Crucial: StrEnum matches py::str, so we must intercept it before the string check)
+            if (py::hasattr(cls, "__members__")) {
+                std::string currentName = py::str(value.attr("name"));
+                
+                // Draw a Dropdown menu
+                if (ImGui::BeginCombo(key.c_str(), currentName.c_str())) {
+                    
+                    // Retrieve all available options from the Python Enum class
+                    py::dict members = cls.attr("__members__");
+                    
+                    for (auto item : members) {
+                        std::string memberName = py::str(item.first);
+                        bool isSelected = (currentName == memberName);
+                        
+                        // If the user selects a new option
+                        if (ImGui::Selectable(memberName.c_str(), isSelected)) {
+                            // Capture the state BEFORE assigning the new value for Undo/Redo
+                            nlohmann::json stateBefore = Serialize();
+                            
+                            // Assign the actual Enum instance back to Python (e.g., Direction.UP)
+                            m_instance.attr(key.c_str()) = item.second; 
+                            
+                            CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, stateBefore, Serialize()));
+                        }
+                        
+                        // Keep the current item visually focused when opening the dropdown
+                        if (isSelected) {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+            }
+            // 2. Fallback to standard types
+            else if (py::isinstance<py::float_>(value)) {
                 float v = value.cast<float>();
                 if (EditorUI::DragFloat(key.c_str(), &v, 0.1f, this)) {
                     m_instance.attr(key.c_str()) = v;
@@ -499,7 +537,13 @@ nlohmann::json ScriptComponent::Serialize() const {
                 if (py::isinstance<Component>(value)) continue;
 
                 // Dynamically check types and save them to the JSON properties object
-                if (py::isinstance<py::bool_>(value)) {
+                py::object cls = value.attr("__class__");
+
+                // Enums must be intercepted first and saved by their string 'name' (e.g., "UP", "IDLE")
+                if (py::hasattr(cls, "__members__")) {
+                    properties[key] = py::str(value.attr("name")).cast<std::string>();
+                }
+                else if (py::isinstance<py::bool_>(value)) {
                     properties[key] = value.cast<bool>();
                 } 
                 else if (py::isinstance<py::float_>(value)) {
@@ -567,8 +611,20 @@ void ScriptComponent::Deserialize(const nlohmann::json& j) {
         for (auto& el : props.items()) {
             std::string key = el.key();
             try {
-                // Determine the JSON type and push it directly into the Python dictionary
-                if (el.value().is_boolean()) {
+                // We must check the CURRENT type of the variable in the active Python script 
+                // to know if it's an Enum. This prevents replacing an Enum with a raw string!
+                py::object currentValue = m_instance.attr(key.c_str());
+                py::object cls = currentValue.attr("__class__");
+
+                // Reconstruct the Python Enum instance safely
+                if (py::hasattr(cls, "__members__") && el.value().is_string()) {
+                    std::string enumName = el.value().get<std::string>();
+                    
+                    // This dynamically invokes cls.UP, returning the true Enum instance
+                    m_instance.attr(key.c_str()) = cls.attr(enumName.c_str());
+                }
+                // Determine the standard JSON types
+                else if (el.value().is_boolean()) {
                     m_instance.attr(key.c_str()) = el.value().get<bool>();
                 } 
                 else if (el.value().is_number_float()) {
