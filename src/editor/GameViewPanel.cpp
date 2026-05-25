@@ -7,12 +7,6 @@ void GameViewPanel::Draw(RenderTexture2D& gameTexture, EditorViewMode& currentVi
     
     // The name of the window matters for ImGui docking
     ImGui::Begin("Game View");
-
-    // If the flag was set by the Toolbar, we force focus on this window
-    if (currentViewMode == EditorViewMode::Game) {
-        ImGui::SetWindowFocus();
-        currentViewMode = EditorViewMode::None;
-    }
     
     ImVec2 windowSize = ImGui::GetContentRegionAvail();
     if (windowSize.x > 0.0f && windowSize.y > 0.0f) {

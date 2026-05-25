@@ -107,7 +107,16 @@ void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunn
         // Keep track of the selected object before drawing the hierarchy
         GameObject* prevSelectedObject = m_selectedObject;
 
-        m_hierarchyPanel.Draw(activeScene, m_selectedObject);
+        if (m_prefabPanel.IsOpen()) {
+            m_prefabPanel.Draw(m_selectedObject, m_currentViewMode);
+        }
+
+        if (m_currentViewMode == EditorViewMode::Prefab && m_prefabPanel.IsOpen()) {
+            m_hierarchyPanel.Draw(m_prefabPanel.GetPrefabScene(), m_selectedObject);
+        }
+        else {
+            m_hierarchyPanel.Draw(activeScene, m_selectedObject);
+        }
         
         // UX LOGIC: If the user just clicked a new GameObject in the Hierarchy, 
         // we must clear the selected Asset to prioritize the Scene Object in the Inspector!
@@ -117,7 +126,7 @@ void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunn
 
         m_console.Draw("Console");
         m_inspectorPanel.Draw(m_selectedObject, m_selectedAsset, m_selectedAssetPath);
-        m_projectPanel.Draw(activeScene, m_selectedObject, m_selectedAsset, m_selectedAssetPath, m_assetsPath, currentScenePath, m_codeEditorPanel, m_currentViewMode);
+        m_projectPanel.Draw(activeScene, m_selectedObject, m_selectedAsset, m_selectedAssetPath, m_assetsPath, currentScenePath, m_codeEditorPanel, m_currentViewMode, m_prefabPanel);
         m_performancePanel.Draw(activeScene);
 
     rlImGuiEnd();

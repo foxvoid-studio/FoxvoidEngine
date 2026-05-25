@@ -13,7 +13,9 @@
 #include "world/GameObject.hpp"
 
 #include "editor/EditorViewMode.hpp"
+
 class CodeEditorPanel;
+class PrefabEditorPanel;
 
 namespace fs = std::filesystem;
 
@@ -28,11 +30,11 @@ class ProjectPanel {
         ProjectPanel() = default;
         ~ProjectPanel();
     
-        void Draw(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& assetsPath, std::string& currentScenePath, CodeEditorPanel& codeEditorPanel, EditorViewMode& currentViewMode);
+        void Draw(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& assetsPath, std::string& currentScenePath, CodeEditorPanel& codeEditorPanel, EditorViewMode& currentViewMode, PrefabEditorPanel& prefabEditorPanel);
 
     private:
         // Recursive function to read and display the folder tree
-        void DrawDirectoryNode(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& path, std::string& currentScenePath, CodeEditorPanel& codeEditorPanel, EditorViewMode& currentViewMode);
+        void DrawDirectoryNode(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& path, std::string& currentScenePath, CodeEditorPanel& codeEditorPanel, EditorViewMode& currentViewMode, PrefabEditorPanel& prefabEditorPanel);
 
         // Helpers for the visual asset thumbnails
         Texture2D GetOrLoadThumbnail(const std::string& path);

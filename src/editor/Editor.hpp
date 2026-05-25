@@ -26,6 +26,7 @@
 #include "editor/ProjectHubPanel.hpp"
 #include "editor/PerformancePanel.hpp"
 #include "editor/CodeEditorPanel.hpp"
+#include "editor/PrefabEditorPanel.hpp"
 
 class [[gnu::visibility("default")]] Editor {
     public:
@@ -83,4 +84,5 @@ class [[gnu::visibility("default")]] Editor {
         TilePalettePanel m_tilePalettePanel;
         PerformancePanel m_performancePanel;
         CodeEditorPanel m_codeEditorPanel;
+        PrefabEditorPanel m_prefabPanel;
 };

@@ -124,12 +124,6 @@ void CodeEditorPanel::SaveFile() {
 }
 
 void CodeEditorPanel::Draw(EditorViewMode& currentViewMode) {
-    // Check if we need to force ImGui to focus this tab
-    if (currentViewMode == EditorViewMode::Code) {
-        ImGui::SetNextWindowFocus();
-        currentViewMode = EditorViewMode::None; // Reset the flag once focused
-    }
-
     // Build the window title dynamically (Show a '*' if the file is modified)
     std::string windowTitle = "Code Editor";
     if (!m_currentFilePath.empty()) {

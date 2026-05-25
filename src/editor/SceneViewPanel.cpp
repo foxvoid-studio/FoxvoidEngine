@@ -9,15 +9,14 @@
 #include <graphics/TileMap.hpp>
 #include "commands/TileMapPaintCommand.hpp"
 
-void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject, int selectedTileID, int selectedLayer, EditorViewMode& currentViewMode) {
-    if (currentViewMode == EditorViewMode::Scene) {
-        ImGui::SetNextWindowFocus();
-        currentViewMode = EditorViewMode::None;
-    }
-    
+void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject, int selectedTileID, int selectedLayer, EditorViewMode& currentViewMode) {    
     // Remove inner margins (padding) so the render texture touches the window borders
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::Begin("Scene View");
+
+    if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
+        currentViewMode = EditorViewMode::Scene;
+    }
 
     // Gizmo operation state
     // We store the current tool (Translate, Rotate, Scale)

@@ -13,6 +13,7 @@
 #include <core/AssetRegistry.hpp>
 
 #include "editor/CodeEditorPanel.hpp"
+#include "editor/PrefabEditorPanel.hpp"
 
 bool IsScriptableObjectFile(const fs::path& filepath) {
     std::ifstream file(filepath);
@@ -210,7 +211,7 @@ Texture2D ProjectPanel::GetOrLoadThumbnail(const std::string& path) {
     return empty;
 }
 
-void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& assetsPath, std::string& currentScenePath, CodeEditorPanel& codeEditorPanel, EditorViewMode& currentViewMode) {
+void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& assetsPath, std::string& currentScenePath, CodeEditorPanel& codeEditorPanel, EditorViewMode& currentViewMode, PrefabEditorPanel& prefabEditorPanel) {
     ImGui::Begin("Project");
 
     if (m_currentDirectory.empty()) {
@@ -283,7 +284,7 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(4, 4));
 
     // Only draw the Tree View now
-    DrawDirectoryNode(activeScene, selectedObject, selectedAsset, selectedAssetPath, assetsPath, currentScenePath, codeEditorPanel, currentViewMode);
+    DrawDirectoryNode(activeScene, selectedObject, selectedAsset, selectedAssetPath, assetsPath, currentScenePath, codeEditorPanel, currentViewMode, prefabEditorPanel);
 
     ImGui::PopStyleVar();
 
@@ -500,7 +501,7 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
     }
 }
 
-void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& path, std::string& currentScenePath, CodeEditorPanel& codeEditorPanel, EditorViewMode& currentViewMode) {
+void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedObject, pybind11::object& selectedAsset, std::string& selectedAssetPath, const fs::path& path, std::string& currentScenePath, CodeEditorPanel& codeEditorPanel, EditorViewMode& currentViewMode, PrefabEditorPanel& prefabEditorPanel) {
     if (!fs::exists(path)) return;
 
     for (const auto& entry : fs::directory_iterator(path)) {
@@ -564,7 +565,7 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
             ImGui::PopID();
 
             if (isOpen) {
-                DrawDirectoryNode(activeScene, selectedObject, selectedAsset, selectedAssetPath, entry.path(), currentScenePath, codeEditorPanel, currentViewMode); 
+                DrawDirectoryNode(activeScene, selectedObject, selectedAsset, selectedAssetPath, entry.path(), currentScenePath, codeEditorPanel, currentViewMode, prefabEditorPanel); 
                 ImGui::TreePop();
             }
         } else {
@@ -669,7 +670,11 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
 
             if (ImGui::IsItemHovered()) {
                 if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                    if (extension == ".scene") {
+                    if (extension == ".prefab") {
+                        prefabEditorPanel.OpenPrefab(entry.path().string());
+                        currentViewMode = EditorViewMode::Prefab; // Switch the view mode
+                    }
+                    else if (extension == ".scene") {
                         std::cout << "[Editor] Loading scene via Project Browser: " << filename << std::endl;
                         selectedObject = nullptr; 
                         currentScenePath = entry.path().string();

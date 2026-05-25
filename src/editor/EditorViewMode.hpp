@@ -4,5 +4,6 @@ enum class EditorViewMode {
     None,
     Scene,
     Game,
-    Code
+    Code,
+    Prefab
 };
