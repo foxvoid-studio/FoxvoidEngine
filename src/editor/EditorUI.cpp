@@ -26,6 +26,25 @@ bool EditorUI::DragFloat2(const char* label, float v[2], float v_speed, Componen
     return valueChanged;
 }
 
+bool EditorUI::DragFloat3(const char* label, float v[3], float v_speed, Component* component, float v_min, float v_max) {
+    static nlohmann::json initialState;
+    bool valueChanged = false;
+
+    if (ImGui::DragFloat3(label, v, v_speed, v_min, v_max)) {
+        valueChanged = true;
+    }
+
+    if (ImGui::IsItemActivated()) {
+        initialState = component->Serialize();
+    }
+
+    if (ImGui::IsItemDeactivatedAfterEdit()) {
+        CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(component, initialState, component->Serialize()));
+    }
+
+    return valueChanged;
+}
+
 bool EditorUI::DragFloat4(const char* label, float v[4], float v_speed, Component* component, float v_min, float v_max) {
     static nlohmann::json initialState;
     bool valueChanged = false;

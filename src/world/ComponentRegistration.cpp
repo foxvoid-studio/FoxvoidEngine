@@ -20,6 +20,7 @@
 #include "physics/PolygonCollider.hpp"
 #include "physics/CircleCollider.hpp"
 #include "physics/CapsuleCollider.hpp"
+#include "physics/Transform3d.hpp"
 
 #include "gui/RectTransform.hpp"
 #include "gui/ImageRenderer.hpp"
@@ -37,6 +38,7 @@ namespace EngineSetup {
         // Core
         ComponentRegistry::RegisterCPP<Transform2d>("Transform2d", "Core");
         ComponentRegistry::RegisterCPP<PersistentComponent>("PersistentComponent", "Core");
+        ComponentRegistry::RegisterCPP<Transform3d>("Transform3d", "Core");
 
         // Physics
         ComponentRegistry::RegisterCPP<RectCollider>("RectCollider", "Physics");
