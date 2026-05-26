@@ -1,22 +1,27 @@
 #include "ComponentRegistration.hpp"
 #include "ComponentRegistry.hpp"
 
-#include "physics/Transform2d.hpp"
 #include "graphics/ShapeRenderer.hpp"
 #include "graphics/SpriteRenderer.hpp"
 #include "graphics/SpriteSheetRenderer.hpp"
 #include "graphics/Animation2d.hpp"
 #include "graphics/Animator2d.hpp"
-#include "scripting/ScriptComponent.hpp"
-#include "physics/RectCollider.hpp"
-#include "physics/RigidBody2d.hpp"
 #include "graphics/Camera2d.hpp"
 #include "graphics/TileMap.hpp"
 #include "graphics/ParticleSystem2d.hpp"
-#include "gui/TextRenderer.hpp"
-#include "gui/Button.hpp"
+#include "graphics/Camera3d.hpp"
+#include "graphics/CuboidMesh.hpp"
+
+#include "scripting/ScriptComponent.hpp"
+
+#include "physics/RectCollider.hpp"
+#include "physics/RigidBody2d.hpp"
+
 #include "world/PersistentComponent.hpp"
+
 #include "audio/AudioSource.hpp"
+
+#include "physics/Transform2d.hpp"
 #include "physics/PolygonCollider.hpp"
 #include "physics/CircleCollider.hpp"
 #include "physics/CapsuleCollider.hpp"
@@ -26,6 +31,8 @@
 #include "gui/ImageRenderer.hpp"
 #include "gui/VBoxContainer.hpp"
 #include "gui/HBoxContainer.hpp"
+#include "gui/TextRenderer.hpp"
+#include "gui/Button.hpp"
 #include "gui/Mask.hpp"
 #include "gui/Checkbox.hpp"
 #include "gui/Slider.hpp"
@@ -56,6 +63,8 @@ namespace EngineSetup {
         ComponentRegistry::RegisterCPP<Camera2d>("Camera2d", "Graphics");
         ComponentRegistry::RegisterCPP<TileMap>("TileMap", "Graphics");
         ComponentRegistry::RegisterCPP<ParticleSystem2d>("ParticleSystem2d", "Graphics");
+        ComponentRegistry::RegisterCPP<Camera3d>("Camera3d", "Graphics");
+        ComponentRegistry::RegisterCPP<CuboidMesh>("CuboidMesh", "Graphics");
 
         // Gui
         ComponentRegistry::RegisterCPP<RectTransform>("RectTransform", "GUI");

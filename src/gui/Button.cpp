@@ -60,7 +60,7 @@ void Button::Update(float deltaTime) {
     Vector2 mousePos = Mouse::GetPosition();
     
     if (!isScreenSpace && Engine::Get()) {
-        Camera2D cam = Engine::Get()->GetActiveScene().GetMainCamera(GetScreenWidth(), GetScreenHeight());
+        Camera2D cam = Engine::Get()->GetActiveScene().GetMainCamera2D(GetScreenWidth(), GetScreenHeight());
         mousePos = GetScreenToWorld2D(mousePos, cam);
     }
 

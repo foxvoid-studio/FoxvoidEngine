@@ -69,11 +69,17 @@ void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunn
     // Pass 1: Render the Scene View (what the editor sees)
     BeginTextureMode(m_sceneTexture);
         ClearBackground(Color{ 40, 40, 40, 255 });
+
+        if (activeScene.Has3DCamera()) {
+            BeginMode3D(activeScene.GetMainCamera3D());
+                activeScene.Render3D();
+            EndMode3D();
+        }
         
         m_editorCamera->Begin();
             if (m_showGlobalGrid) m_editorCamera->DrawGrid(100, 50.0f);
 
-            activeScene.Render();    
+            activeScene.Render2D();    
             PhysicsEngine::RenderDebug(activeScene);
 
             if (m_selectedObject) {

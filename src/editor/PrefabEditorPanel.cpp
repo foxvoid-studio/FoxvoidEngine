@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include "extras/IconsFontAwesome6.h"
+#include "core/Engine.hpp"
 
 PrefabEditorPanel::PrefabEditorPanel() : m_isOpen(false), m_camera(1920.0f, 1080.0f) {
     // Create a high-res texture for the prefab view. 
@@ -69,8 +70,14 @@ void PrefabEditorPanel::Draw(GameObject*& selectedObject, EditorViewMode& curren
     BeginTextureMode(m_renderTexture);
         ClearBackground(DARKGRAY); // Distinct background color for prefab mode
 
+        if (Engine::Get()->GetActiveScene().Has3DCamera()) {
+            BeginMode3D(Engine::Get()->GetActiveScene().GetMainCamera3D());
+                m_prefabScene.Render3D();
+            EndMode3D();
+        }
+
         m_camera.Begin();
-            m_prefabScene.Render();
+            m_prefabScene.Render2D();
         m_camera.End();
     EndTextureMode();
 

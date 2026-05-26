@@ -20,6 +20,8 @@
 #include "PersistentComponent.hpp"
 #include <gui/Mask.hpp>
 #include <core/AssetRegistry.hpp>
+#include <physics/Transform3d.hpp>
+#include <graphics/Camera3d.hpp>
 
 class Scene {
     public:
@@ -94,8 +96,18 @@ class Scene {
             }
         }
 
+        void Render3D() {
+            for (auto& go : m_gameObjects) {
+                if (!go->IsActiveInHierarchy()) continue;
+
+                if (go->GetComponent<Transform3d>()) {
+                    go->Render();
+                }
+            }
+        }
+
         // Triggers the render loop for all GameObjects in the scene based on Z-Index
-        void Render() {
+        void Render2D() {
             // Create a temporary list of raw pointers to sort
             std::vector<GameObject*> renderList;
             renderList.reserve(m_gameObjects.size());
@@ -422,7 +434,10 @@ class Scene {
                 // We cannot click on invisible objects
                 if (!go->IsActiveInHierarchy()) continue;
 
-                pickList.push_back(go.get());
+                // Only 2D objects can be picked via 2D world pos
+                if (go->GetComponent<Transform2d>()) {
+                    pickList.push_back(go.get());
+                }
             }
 
             // Sort the list by Z-Index (Descending: Highest Z is checked first!)
@@ -505,8 +520,24 @@ class Scene {
             }
         }
 
+        bool Has2DCamera() const {
+            for (const auto& go : m_gameObjects) {
+                auto cam = go->GetComponent<Camera2d>();
+                if (cam && cam->isMain) return true;
+            }
+            return false;
+        }
+
+        bool Has3DCamera() const {
+            for (const auto& go : m_gameObjects) {
+                auto cam = go->GetComponent<Camera3d>();
+                if (cam && cam->isMain) return true;
+            }
+            return false;
+        }
+
         // Finds the primary Camera2d in the scene and returns its Raylib equivalent
-        Camera2D GetMainCamera(float screenWidth, float screenHeight) const {
+        Camera2D GetMainCamera2D(float screenWidth, float screenHeight) const {
             for (const auto& go : m_gameObjects) {
                 auto cam = go->GetComponent<Camera2d>();
                 if (cam and cam->isMain) {
@@ -520,6 +551,23 @@ class Scene {
             defaultCam.zoom = 1.0f;
             defaultCam.offset.x = screenWidth / 2.0f;
             defaultCam.offset.y = screenHeight / 2.0f;
+            return defaultCam;
+        }
+
+        Camera3D GetMainCamera3D() const {
+            for (const auto& go : m_gameObjects) {
+                auto cam = go->GetComponent<Camera3d>();
+                if (cam && cam->isMain) {
+                    return cam->GetRaylibCamera();
+                }
+            }
+
+            Camera3D defaultCam = { 0 };
+            defaultCam.position = { 0.0f, 0.0f, 0.0f };
+            defaultCam.target = { 0.0f, 0.0f, -1.0f };
+            defaultCam.up = { 0.0f, 1.0f, 0.0f };
+            defaultCam.fovy = 60.0f;
+            defaultCam.projection = CAMERA_PERSPECTIVE;
             return defaultCam;
         }
 

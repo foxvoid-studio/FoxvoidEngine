@@ -220,10 +220,18 @@ void Engine::Render() {
     BeginTextureMode(m_gameTexture);
         ClearBackground(m_activeScene.GetMainCameraBackgroundColor());
 
-        BeginMode2D(m_activeScene.GetMainCamera((float)m_windowWidth, (float)m_windowHeight));
-            // Draw all entities normally
-            m_activeScene.Render();
-        EndMode2D();
+        if (m_activeScene.Has3DCamera()) {
+            BeginMode3D(m_activeScene.GetMainCamera3D());
+                m_activeScene.Render3D();
+            EndMode3D();
+        }
+        
+        if (m_activeScene.Has2DCamera()) {
+            BeginMode2D(m_activeScene.GetMainCamera2D((float)m_windowWidth, (float)m_windowHeight));
+                // Draw all entities normally
+                m_activeScene.Render2D();
+            EndMode2D();
+        }
 
         m_activeScene.RenderHUD();
     EndTextureMode();
