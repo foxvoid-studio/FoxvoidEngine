@@ -99,7 +99,7 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                 Vector2 bottomRightWorld = { position.x + (width / 2.0f), position.y + (height / 2.0f) };
 
                 // Convert from World Space to Render Texture Space
-                Camera2D cam2d = camera.GetCamera();
+                Camera2D cam2d = camera.GetCamera2D();
                 Vector2 topLeftTex = GetWorldToScreen2D(topLeftWorld, cam2d);
                 Vector2 bottomRightTex = GetWorldToScreen2D(bottomRightWorld, cam2d);
 
@@ -176,7 +176,7 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                 ImGuizmo::SetRect(imagePosAbsolute.x, imagePosAbsolute.y, drawSize.x, drawSize.y);
 
                 // Extract Raylib camera matrices
-                Camera2D cam2d = camera.GetCamera();
+                Camera2D cam2d = camera.GetCamera2D();
                 Matrix viewMatrix = GetCameraMatrix2D(cam2d);
                 Matrix projMatrix = MatrixOrtho(0.0f, texWidth, texHeight, 0.0f, -1.0f, 1.0f);
 
@@ -267,7 +267,7 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                 (mousePosRel.x / drawSize.x) * texWidth,
                 (mousePosRel.y / drawSize.y) * texHeight
             };
-            Vector2 worldPos = GetScreenToWorld2D(renderTexturePos, camera.GetCamera());
+            Vector2 worldPos = GetScreenToWorld2D(renderTexturePos, camera.GetCamera2D());
 
             bool handledAsPaint = false;
 

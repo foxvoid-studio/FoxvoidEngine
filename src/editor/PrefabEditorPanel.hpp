@@ -13,7 +13,7 @@ class PrefabEditorPanel {
         ~PrefabEditorPanel();
 
         // Main draw loop for the ImGui window
-        void Draw(GameObject*& selectedObject, EditorViewMode& currentViewMode);
+        void Draw(GameObject*& selectedObject, EditorViewMode& currentViewMode, bool showGrid2D, bool showGrid3D);
 
         // Loads a .prefab file into the isolated scene
         void OpenPrefab(const std::string& filepath);

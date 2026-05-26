@@ -71,13 +71,14 @@ void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunn
         ClearBackground(Color{ 40, 40, 40, 255 });
 
         if (activeScene.Has3DCamera()) {
-            BeginMode3D(activeScene.GetMainCamera3D());
+            m_editorCamera->Begin3D();
+                if (m_showGrid3D) m_editorCamera->DrawGrid3D(100, 1.0f);
                 activeScene.Render3D();
-            EndMode3D();
+            m_editorCamera->End3D();
         }
         
-        m_editorCamera->Begin();
-            if (m_showGlobalGrid) m_editorCamera->DrawGrid(100, 50.0f);
+        m_editorCamera->Begin2D();
+            if (m_showGrid2D) m_editorCamera->DrawGrid2D(100, 50.0f);
 
             activeScene.Render2D();    
             PhysicsEngine::RenderDebug(activeScene);
@@ -87,7 +88,7 @@ void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunn
                     tilemap->RenderGrid();
                 }
             }
-        m_editorCamera->End();
+        m_editorCamera->End2D();
         activeScene.RenderHUD();
     EndTextureMode();
 
@@ -96,7 +97,7 @@ void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunn
         ImGuizmo::BeginFrame();
         ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport()); 
 
-        m_mainMenuBar.Draw(activeScene, currentScenePath, isRunning, m_selectedObject, m_inputSettingsPanel, m_gameStatePanel, m_showGlobalGrid);
+        m_mainMenuBar.Draw(activeScene, currentScenePath, isRunning, m_selectedObject, m_inputSettingsPanel, m_gameStatePanel, m_showGrid2D, m_showGrid3D);
 
         m_inputSettingsPanel.Draw();
         m_gameStatePanel.Draw();
@@ -114,7 +115,7 @@ void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunn
         GameObject* prevSelectedObject = m_selectedObject;
 
         if (m_prefabPanel.IsOpen()) {
-            m_prefabPanel.Draw(m_selectedObject, m_currentViewMode);
+            m_prefabPanel.Draw(m_selectedObject, m_currentViewMode, m_showGrid2D, m_showGrid3D);
         }
 
         if (m_currentViewMode == EditorViewMode::Prefab && m_prefabPanel.IsOpen()) {

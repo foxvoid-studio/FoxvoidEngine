@@ -4,25 +4,35 @@
 
 class EditorCamera {
     public:
-        // Initialize the camera centered on the screen
+        // Initialize both 2D and 3D cameras
         EditorCamera(float screenWidth, float screenHeight);
 
-        // Handles user input for zooming and panning
-        // isWindowHovered is passed from ImGui to ensure we only move when over the Scene View
+        // Handles user input for zooming, panning (2D) and flying (3D)
         void Update(bool isWindowHovered);
 
-        // Activates the camera for rendering
-        void Begin();
+        // --- 2D API ---
+        void Begin2D();
+        void End2D();
+        void DrawGrid2D(int slices, float spacing);
+        Camera2D GetCamera2D() const { return m_camera2D; }
 
-        // Deactivates the camera
-        void End();
-
-        // Draws a background grid to help orient the user in the world space
-        void DrawGrid(int slices, float spacing);
-
-        Camera2D GetCamera() const { return m_camera; }
+        // --- 3D API ---
+        void Begin3D();
+        void End3D();
+        void DrawGrid3D(int slices, float spacing);
+        Camera3D GetCamera3D() const { return m_camera3D; }
 
     private:
-        Camera2D m_camera;
-        bool m_isPanning;
+        // 2D State
+        Camera2D m_camera2D;
+        bool m_isPanning2D;
+
+        // 3D State
+        Camera3D m_camera3D;
+        bool m_isFlying3D;
+        float m_yaw;
+        float m_pitch;
+
+        // Internal math helper for FPS rotation
+        void Update3DCameraTarget();
 };

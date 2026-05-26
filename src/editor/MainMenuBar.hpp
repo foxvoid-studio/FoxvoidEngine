@@ -15,7 +15,7 @@ class MainMenuBar {
         ~MainMenuBar() = default;
 
         // Draws the menu bar and handles the Save as popup
-        void Draw(Scene& activeScene, std::string& currentScenePath, bool& isRunning, GameObject*& selectedObject, InputSettingsPanel& inputPanel, GameStatePanel& gameStatePanel, bool& showGlobalGrid);
+        void Draw(Scene& activeScene, std::string& currentScenePath, bool& isRunning, GameObject*& selectedObject, InputSettingsPanel& inputPanel, GameStatePanel& gameStatePanel, bool& showGrid2D, bool& showGrid3D);
     private:
         bool m_openSavePopup = false;
 

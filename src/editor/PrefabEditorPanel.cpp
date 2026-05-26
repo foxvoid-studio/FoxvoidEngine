@@ -62,7 +62,7 @@ void PrefabEditorPanel::ClosePrefab() {
     m_isOpen = false;
 }
 
-void PrefabEditorPanel::Draw(GameObject*& selectedObject, EditorViewMode& currentViewMode) {
+void PrefabEditorPanel::Draw(GameObject*& selectedObject, EditorViewMode& currentViewMode, bool showGrid2D, bool showGrid3D) {
     if (!m_isOpen) return;
 
     // 1. RENDER PASS (Virtual Environment)
@@ -70,15 +70,15 @@ void PrefabEditorPanel::Draw(GameObject*& selectedObject, EditorViewMode& curren
     BeginTextureMode(m_renderTexture);
         ClearBackground(DARKGRAY); // Distinct background color for prefab mode
 
-        if (Engine::Get()->GetActiveScene().Has3DCamera()) {
-            BeginMode3D(Engine::Get()->GetActiveScene().GetMainCamera3D());
-                m_prefabScene.Render3D();
-            EndMode3D();
-        }
+        m_camera.Begin3D();
+            if (showGrid3D) m_camera.DrawGrid3D(100, 1.0f);
+            m_prefabScene.Render3D();
+        m_camera.End3D();
 
-        m_camera.Begin();
+        m_camera.Begin2D();
+            if (showGrid2D) m_camera.DrawGrid2D(100, 50.0f);
             m_prefabScene.Render2D();
-        m_camera.End();
+        m_camera.End2D();
     EndTextureMode();
 
     // 2. UI PASS

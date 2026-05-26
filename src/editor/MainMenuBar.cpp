@@ -11,7 +11,7 @@
 #include "build/Build.hpp"
 #include "build/IBuilder.hpp"
 
-void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& isRunning, GameObject*& selectedObject, InputSettingsPanel& inputPanel, GameStatePanel& gameStatePanel, bool& showGlobalGrid) {
+void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& isRunning, GameObject*& selectedObject, InputSettingsPanel& inputPanel, GameStatePanel& gameStatePanel, bool& showGrid2D, bool& showGrid3D) {
     // Global Shortcuts
     ImGuiIO& io = ImGui::GetIO();
 
@@ -85,7 +85,8 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
         }
 
         if (ImGui::BeginMenu("View")) {
-            ImGui::MenuItem("Show Global Grid", nullptr, &showGlobalGrid);
+            ImGui::MenuItem("Show 2D Grid", nullptr, &showGrid2D);
+            ImGui::MenuItem("Show 3D Grid", nullptr, &showGrid3D);
             ImGui::EndMenu();
         }
 

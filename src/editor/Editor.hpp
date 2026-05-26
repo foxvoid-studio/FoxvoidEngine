@@ -57,7 +57,9 @@ class [[gnu::visibility("default")]] Editor {
 
         EditorViewMode m_currentViewMode = EditorViewMode::Scene;
 
-        bool m_showGlobalGrid = true;
+        bool m_showGrid2D = true;
+        bool m_showGrid3D = true;
+
         int m_selectedTileID = -1;
         int m_selectedLayer = 0;
         std::filesystem::path m_assetsPath = "assets";
