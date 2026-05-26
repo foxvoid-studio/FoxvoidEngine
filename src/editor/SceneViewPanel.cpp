@@ -5,15 +5,18 @@
 #include "extras/IconsFontAwesome6.h"
 #include "commands/CommandHistory.hpp"
 #include "commands/Transform2dCommand.hpp"
+#include "commands/ModifyComponentCommand.hpp" // Added for 3D Undo/Redo
 #include "graphics/ShapeRenderer.hpp"
 #include <graphics/TileMap.hpp>
 #include "commands/TileMapPaintCommand.hpp"
+#include "physics/Transform3d.hpp" // Added for 3D component recognition
 
 void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject, int selectedTileID, int selectedLayer, EditorViewMode& currentViewMode) {    
     // Remove inner margins (padding) so the render texture touches the window borders
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::Begin("Scene View");
 
+    // Track active window focus to switch context modes seamlessly
     if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
         currentViewMode = EditorViewMode::Scene;
     }
@@ -73,6 +76,9 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
         // We must capture if the image is hovered right here before drawing anything else on top of it 
         bool isImageHovered = ImGui::IsItemHovered();
 
+        // ----------------------------------------------------
+        // OUTLINE SELECTION 2D (Only for 2D objects)
+        // ----------------------------------------------------
         if (selectedObject) {
             auto transform = selectedObject->GetComponent<Transform2d>();
             if (transform) {
@@ -118,7 +124,9 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
             }
         }
 
-        // Floating gizmo toolbar
+        // ----------------------------------------------------
+        // GIZMO TOOLBAR
+        // ----------------------------------------------------
         // Save cursor position to draw the toolbar at the top left of the scene view
         ImVec2 toolbarPos = ImVec2(10.0f, ImGui::GetCursorStartPos().y + 10.0f);
         ImGui::SetCursorPos(toolbarPos);
@@ -166,19 +174,27 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
         ImGui::PopStyleColor();
         ImGui::PopStyleVar();
 
-        // Gizmos
+        // ----------------------------------------------------
+        // GIZMO RENDERING (Hybrid 2D / 3D Implementation)
+        // ----------------------------------------------------
         if (selectedObject) {
-            auto transform = selectedObject->GetComponent<Transform2d>();
-            if (transform) {
-                // Setup ImGuizmo environment
-                ImGuizmo::SetOrthographic(true); // We are in 2D
+            auto transform3d = selectedObject->GetComponent<Transform3d>();
+            auto transform2d = selectedObject->GetComponent<Transform2d>();
+
+            if (transform3d) {
+                // ==========================================
+                // 3D GIZMO
+                // ==========================================
+                ImGuizmo::SetOrthographic(false); // Enable Perspective projection for 3D
                 ImGuizmo::SetDrawlist();
                 ImGuizmo::SetRect(imagePosAbsolute.x, imagePosAbsolute.y, drawSize.x, drawSize.y);
 
-                // Extract Raylib camera matrices
-                Camera2D cam2d = camera.GetCamera2D();
-                Matrix viewMatrix = GetCameraMatrix2D(cam2d);
-                Matrix projMatrix = MatrixOrtho(0.0f, texWidth, texHeight, 0.0f, -1.0f, 1.0f);
+                Camera3D cam3d = camera.GetCamera3D();
+                Matrix viewMatrix = GetCameraMatrix(cam3d);
+                
+                // Calculate real aspect ratio for the 3D projection
+                float aspect = drawSize.x / drawSize.y;
+                Matrix projMatrix = MatrixPerspective(cam3d.fovy * DEG2RAD, aspect, 0.01f, 1000.0f);
 
                 // Raylib matrices are column-major, just like OpenGL/ImGuizmo expects.
                 float view[16] = {
@@ -195,11 +211,121 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                     projMatrix.m12, projMatrix.m13, projMatrix.m14, projMatrix.m15
                 };
 
+                // --- EULER ANGLE FIX ---
+                // We use ImGuizmo to generate the local matrix to ensure 
+                // that Euler angles are calculated using ITS mathematical convention.
+                float translation[3] = { transform3d->position.x, transform3d->position.y, transform3d->position.z };
+                float rotation[3]    = { transform3d->rotation.x, transform3d->rotation.y, transform3d->rotation.z };
+                float scale[3]       = { transform3d->scale.x, transform3d->scale.y, transform3d->scale.z };
+                
+                float localMatrixFloat[16];
+                ImGuizmo::RecomposeMatrixFromComponents(translation, rotation, scale, localMatrixFloat);
+
+                // Safe reconversion to Raylib's Matrix structure
+                Matrix localMat;
+                localMat.m0 = localMatrixFloat[0]; localMat.m1 = localMatrixFloat[1]; localMat.m2 = localMatrixFloat[2]; localMat.m3 = localMatrixFloat[3];
+                localMat.m4 = localMatrixFloat[4]; localMat.m5 = localMatrixFloat[5]; localMat.m6 = localMatrixFloat[6]; localMat.m7 = localMatrixFloat[7];
+                localMat.m8 = localMatrixFloat[8]; localMat.m9 = localMatrixFloat[9]; localMat.m10= localMatrixFloat[10]; localMat.m11= localMatrixFloat[11];
+                localMat.m12= localMatrixFloat[12]; localMat.m13= localMatrixFloat[13]; localMat.m14= localMatrixFloat[14]; localMat.m15= localMatrixFloat[15];
+
+                // Apply parent hierarchy if it exists
+                Matrix globalMat = localMat;
+                if (selectedObject->GetParent() && selectedObject->GetParent()->GetComponent<Transform3d>()) {
+                    Matrix parentGlobal = selectedObject->GetParent()->GetComponent<Transform3d>()->GetGlobalMatrix();
+                    globalMat = MatrixMultiply(localMat, parentGlobal);
+                }
+
+                // Extract the Global matrix for the Gizmo
+                float objMatrix[16];
+                objMatrix[0] = globalMat.m0; objMatrix[1] = globalMat.m1; objMatrix[2] = globalMat.m2; objMatrix[3] = globalMat.m3;
+                objMatrix[4] = globalMat.m4; objMatrix[5] = globalMat.m5; objMatrix[6] = globalMat.m6; objMatrix[7] = globalMat.m7;
+                objMatrix[8] = globalMat.m8; objMatrix[9] = globalMat.m9; objMatrix[10]= globalMat.m10; objMatrix[11]= globalMat.m11;
+                objMatrix[12]= globalMat.m12; objMatrix[13]= globalMat.m13; objMatrix[14]= globalMat.m14; objMatrix[15]= globalMat.m15;
+
+                // In 3D, scaling should often be done in LOCAL mode to avoid strange deformations (shearing)
+                ImGuizmo::MODE gizmoMode = (currentGizmoOperation == ImGuizmo::SCALE) ? ImGuizmo::LOCAL : ImGuizmo::WORLD;
+                ImGuizmo::Manipulate(view, proj, currentGizmoOperation, gizmoMode, objMatrix);
+
+                // Undo / Redo tracking for 3D
+                static bool wasUsingGizmo3D = false;
+                static nlohmann::json initialTransform3dState;
+
+                if (ImGuizmo::IsUsing()) {
+                    if (!wasUsingGizmo3D) {
+                        initialTransform3dState = transform3d->Serialize();
+                        wasUsingGizmo3D = true;
+                    }
+
+                    // Retrieve the global result from ImGuizmo
+                    Matrix newGlobal;
+                    newGlobal.m0 = objMatrix[0]; newGlobal.m1 = objMatrix[1]; newGlobal.m2 = objMatrix[2]; newGlobal.m3 = objMatrix[3];
+                    newGlobal.m4 = objMatrix[4]; newGlobal.m5 = objMatrix[5]; newGlobal.m6 = objMatrix[6]; newGlobal.m7 = objMatrix[7];
+                    newGlobal.m8 = objMatrix[8]; newGlobal.m9 = objMatrix[9]; newGlobal.m10= objMatrix[10]; newGlobal.m11= objMatrix[11];
+                    newGlobal.m12= objMatrix[12]; newGlobal.m13= objMatrix[13]; newGlobal.m14= objMatrix[14]; newGlobal.m15= objMatrix[15];
+
+                    Matrix newLocal = newGlobal;
+                    
+                    // If the object has a parent, we subtract its influence to get the local matrix back
+                    if (selectedObject->GetParent() && selectedObject->GetParent()->GetComponent<Transform3d>()) {
+                        Matrix parentGlobalInv = MatrixInvert(selectedObject->GetParent()->GetComponent<Transform3d>()->GetGlobalMatrix());
+                        newLocal = MatrixMultiply(newGlobal, parentGlobalInv);
+                    }
+
+                    float localFloat[16];
+                    localFloat[0] = newLocal.m0; localFloat[1] = newLocal.m1; localFloat[2] = newLocal.m2; localFloat[3] = newLocal.m3;
+                    localFloat[4] = newLocal.m4; localFloat[5] = newLocal.m5; localFloat[6] = newLocal.m6; localFloat[7] = newLocal.m7;
+                    localFloat[8] = newLocal.m8; localFloat[9] = newLocal.m9; localFloat[10]= newLocal.m10; localFloat[11]= newLocal.m11;
+                    localFloat[12]= newLocal.m12; localFloat[13]= newLocal.m13; localFloat[14]= newLocal.m14; localFloat[15]= newLocal.m15;
+
+                    // Final decomposition into the component's values
+                    ImGuizmo::DecomposeMatrixToComponents(localFloat, translation, rotation, scale);
+
+                    transform3d->position = { translation[0], translation[1], translation[2] };
+                    transform3d->rotation = { rotation[0], rotation[1], rotation[2] };
+                    transform3d->scale = { scale[0], scale[1], scale[2] };
+
+                } else {
+                    if (wasUsingGizmo3D) {
+                        nlohmann::json currentState = transform3d->Serialize();
+                        if (initialTransform3dState != currentState) {
+                            CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(transform3d, initialTransform3dState, currentState));
+                        }
+                        wasUsingGizmo3D = false;
+                    }
+                }
+            } 
+            else if (transform2d) {
+                // ==========================================
+                // 2D GIZMO
+                // ==========================================
+                ImGuizmo::SetOrthographic(true); // We are in 2D
+                ImGuizmo::SetDrawlist();
+                ImGuizmo::SetRect(imagePosAbsolute.x, imagePosAbsolute.y, drawSize.x, drawSize.y);
+
+                // Extract Raylib camera matrices
+                Camera2D cam2d = camera.GetCamera2D();
+                Matrix viewMatrix = GetCameraMatrix2D(cam2d);
+                Matrix projMatrix = MatrixOrtho(0.0f, texWidth, texHeight, 0.0f, -1.0f, 1.0f);
+
+                float view[16] = {
+                    viewMatrix.m0, viewMatrix.m1, viewMatrix.m2, viewMatrix.m3,
+                    viewMatrix.m4, viewMatrix.m5, viewMatrix.m6, viewMatrix.m7,
+                    viewMatrix.m8, viewMatrix.m9, viewMatrix.m10, viewMatrix.m11,
+                    viewMatrix.m12, viewMatrix.m13, viewMatrix.m14, viewMatrix.m15
+                };
+                
+                float proj[16] = {
+                    projMatrix.m0, projMatrix.m1, projMatrix.m2, projMatrix.m3,
+                    projMatrix.m4, projMatrix.m5, projMatrix.m6, projMatrix.m7,
+                    projMatrix.m8, projMatrix.m9, projMatrix.m10, projMatrix.m11,
+                    projMatrix.m12, projMatrix.m13, projMatrix.m14, projMatrix.m15
+                };
+
                 // Extract the object's local Transform into a 4x4 matrix
-                auto position = transform->GetGlobalPosition();
-                auto global_scale = transform->GetGlobalScale();
+                auto position = transform2d->GetGlobalPosition();
+                auto global_scale = transform2d->GetGlobalScale();
                 float translation[3] = { position.x, position.y, 0.0f };
-                float rotation[3] = { 0.0f, 0.0f, transform->GetGlobalRotation() };
+                float rotation[3] = { 0.0f, 0.0f, transform2d->GetGlobalRotation() };
                 float scale[3] = { global_scale.x, global_scale.y, 1.0f };
                 
                 float objMatrix[16];
@@ -210,29 +336,29 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                 ImGuizmo::Manipulate(view, proj, currentGizmoOperation, ImGuizmo::WORLD, objMatrix);
 
                 // Undo / Redo gizmo tracking
-                static bool wasUsingGizmo = false;
+                static bool wasUsingGizmo2D = false;
                 static Transform2dState initialTransformState;
 
                 if (ImGuizmo::IsUsing()) {
-                    if (!wasUsingGizmo) {
+                    if (!wasUsingGizmo2D) {
                         // The user JUST clicked on the Gizmo! Save the current LOCAL state.
-                        initialTransformState = { transform->position, transform->rotation, transform->scale };
-                        wasUsingGizmo = true;
+                        initialTransformState = { transform2d->position, transform2d->rotation, transform2d->scale };
+                        wasUsingGizmo2D = true;
                     }
 
                     // Apply the continuous movement to the transform
                     ImGuizmo::DecomposeMatrixToComponents(objMatrix, translation, rotation, scale);
                     
                     // Let the Transform component calculate the proper local math!
-                    transform->SetGlobalPosition({ translation[0], translation[1] });
-                    transform->SetGlobalRotation(rotation[2]);
-                    transform->SetGlobalScale({ scale[0], scale[1] });
+                    transform2d->SetGlobalPosition({ translation[0], translation[1] });
+                    transform2d->SetGlobalRotation(rotation[2]);
+                    transform2d->SetGlobalScale({ scale[0], scale[1] });
 
                 } else {
-                    if (wasUsingGizmo) {
+                    if (wasUsingGizmo2D) {
                         // The user JUST released the mouse click! The drag is over.
                         // We record this movement as a single undoable action using LOCAL coordinates.
-                        Transform2dState currentState = { transform->position, transform->rotation, transform->scale };
+                        Transform2dState currentState = { transform2d->position, transform2d->rotation, transform2d->scale };
 
                         // We check if it actually moved to avoid empty commands
                         if (initialTransformState.position.x != currentState.position.x ||
@@ -243,13 +369,15 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                         {
                             CommandHistory::AddCommand(std::make_unique<Transform2dCommand>(selectedObject, initialTransformState, currentState));
                         }
-
-                        wasUsingGizmo = false;
+                        wasUsingGizmo2D = false;
                     }
                 }
             }
         }
 
+        // ----------------------------------------------------
+        // TILEMAP PAINTING & OBJECT PICKING (2D Only for now)
+        // ----------------------------------------------------
         static bool isPainting = false;
         static std::vector<int> initialLayerData;
         static TileMap* activePaintMap = nullptr;
@@ -257,7 +385,6 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
 
         // Mouse picking logic
         if (!ImGuizmo::IsOver() && isImageHovered) {
-            // Calculate World Position of the mouse (same as before)
             ImVec2 mousePosAbsolute = ImGui::GetMousePos();
             Vector2 mousePosRel = {
                 mousePosAbsolute.x - imagePosAbsolute.x,
@@ -267,6 +394,8 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                 (mousePosRel.x / drawSize.x) * texWidth,
                 (mousePosRel.y / drawSize.y) * texHeight
             };
+            
+            // Only perform 2D mouse picking for now
             Vector2 worldPos = GetScreenToWorld2D(renderTexturePos, camera.GetCamera2D());
 
             bool handledAsPaint = false;
@@ -316,6 +445,7 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
             // Only trigger if we are NOT painting a TileMap, and we just clicked once
             if (!handledAsPaint && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                 GameObject* pickedObject = activeScene.PickObject(worldPos);
+                // Future upgrade: Add 3D Raycasting here if pickedObject is null!
                 selectedObject = pickedObject;
             }
         }
