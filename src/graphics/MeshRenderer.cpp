@@ -9,6 +9,7 @@
 #include "editor/commands/CommandHistory.hpp"
 #include "editor/commands/ModifyComponentCommand.hpp"
 #endif
+#include <core/AssetRegistry.hpp>
 
 // Default constructor
 MeshRenderer::MeshRenderer() = default;
@@ -23,31 +24,49 @@ std::string MeshRenderer::GetName() const {
 }
 
 void MeshRenderer::LoadModelFromPath(const std::string& path) {
-    // Prevent loading empty paths
-    if (path.empty()) return;
+    if (path.empty()) {
+        LoadModelFromUUID(UUID(0));
+        return;
+    }
+    
+    // Interrogate the registry to find the unique ID of this file
+    UUID assetId = AssetRegistry::GetUUIDForPath(path);
+    LoadModelFromUUID(assetId);
+}
 
+void MeshRenderer::LoadModelFromUUID(UUID uuid) {
+    m_modelUUID = uuid;
+    
     // Ensure any previously loaded model is freed to prevent memory leaks
     UnloadCurrentModel();
 
-    // Load the model using Raylib's native loader (.glb, .gltf, .obj, etc.)
-    model = LoadModel(path.c_str());
-    
-    // Check if the model has valid mesh data
-    if (model.meshCount > 0) {
-        isLoaded = true;
-        modelPath = path;
-
-        // Fetch the active lighting shader from our custom LightingSystem
-        Shader lightShader = LightingSystem::GetShader();
+    if (m_modelUUID != 0) {
+        // Resolve the UUID back to its CURRENT path on the hard drive
+        std::string resolvedPath = AssetRegistry::GetPathForUUID(m_modelUUID).string();
         
-        // Apply the custom lighting shader to all materials of this newly loaded model
-        if (lightShader.id != 0) {
-            for (int i = 0; i < model.materialCount; i++) {
-                model.materials[i].shader = lightShader;
+        if (!resolvedPath.empty()) {
+            // Load the model using Raylib's native loader
+            model = LoadModel(resolvedPath.c_str());
+            
+            // Check if the model has valid mesh data
+            if (model.meshCount > 0) {
+                isLoaded = true;
+
+                // Fetch the active lighting shader from our custom LightingSystem
+                Shader lightShader = LightingSystem::GetShader();
+                
+                // Apply the custom lighting shader to all materials of this newly loaded model
+                if (lightShader.id != 0) {
+                    for (int i = 0; i < model.materialCount; i++) {
+                        model.materials[i].shader = lightShader;
+                    }
+                }
+            } else {
+                std::cerr << "[MeshRenderer] Failed to load model: " << resolvedPath << std::endl;
             }
+        } else {
+            std::cerr << "[MeshRenderer] Error: Could not resolve UUID " << (uint64_t)m_modelUUID << " to a valid path!" << std::endl;
         }
-    } else {
-        std::cerr << "[MeshRenderer] Failed to load model: " << path << std::endl;
     }
 }
 
@@ -75,38 +94,55 @@ void MeshRenderer::Render() {
 
 #ifndef STANDALONE_MODE
 void MeshRenderer::OnInspector() {
-    // Static buffer to hold the text input for the model path in ImGui
-    static char pathBuffer[256] = "";
-    
-    // Update the UI buffer only if the user is not actively typing in it
-    // This prevents overwriting the text cursor while typing
-    if (std::string(pathBuffer) != modelPath && !ImGui::IsItemActive()) {
-        strncpy(pathBuffer, modelPath.c_str(), sizeof(pathBuffer));
-        // Ensure null termination
-        pathBuffer[sizeof(pathBuffer) - 1] = '\0'; 
+    // Dynamically fetch the current path from the registry for the UI
+    std::string currentPath = "";
+    if (m_modelUUID != 0) {
+        currentPath = AssetRegistry::GetPathForUUID(m_modelUUID).string();
     }
 
-    ImGui::Text("Model Path (.glb, .obj):");
-    
-    // Input field for the path. Triggers an update only when ENTER is pressed.
-    if (ImGui::InputText("##modelpath", pathBuffer, sizeof(pathBuffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
-        std::string newPath = pathBuffer;
-        
-        // If the path actually changed, record the action and load the new model
-        if (newPath != modelPath) {
-            nlohmann::json stateBefore = Serialize();
-            LoadModelFromPath(newPath);
-            CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, stateBefore, Serialize()));
+    char buffer[256];
+    strncpy(buffer, currentPath.c_str(), sizeof(buffer));
+    buffer[sizeof(buffer) - 1] = '\0';
+
+    if (ImGui::InputText("Model Path", buffer, sizeof(buffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
+        std::string newPath(buffer);
+        if (newPath != currentPath) {
+            nlohmann::json initialState = Serialize();
+            LoadModelFromPath(newPath); // Will automatically find the new UUID
+            CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
         }
     }
+
+    // Drag and Drop support
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+            
+            std::string droppedPath = (const char*)payload->Data;
+            std::filesystem::path fsPath(droppedPath);
+            
+            std::string ext = fsPath.extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+            
+            // Allow common 3D formats supported by Raylib
+            if (ext == ".glb" || ext == ".gltf" || ext == ".obj" || ext == ".iqm") {
+                nlohmann::json initialState = Serialize();
+                LoadModelFromPath(droppedPath);
+                CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
     
-    // Tooltip helper
-    if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip("Press ENTER to load the model");
+    ImGui::TextDisabled("Press ENTER to load new model");
+
+    if (isLoaded) {
+        ImGui::Text("Meshes: %d | Materials: %d", model.meshCount, model.materialCount);
+        ImGui::TextDisabled("UUID: %llu", (uint64_t)m_modelUUID);
+    } else {
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No model loaded!");
     }
 
     // Tint color picker (Allows tinting the model while preserving lighting)
-    // Convert Raylib's 0-255 format to ImGui's 0.0-1.0 float format
     float colorFloat[4] = { tint.r / 255.0f, tint.g / 255.0f, tint.b / 255.0f, tint.a / 255.0f };
     
     if (ImGui::ColorEdit4("Tint", colorFloat)) {
@@ -114,9 +150,6 @@ void MeshRenderer::OnInspector() {
         tint.g = static_cast<unsigned char>(colorFloat[1] * 255.0f);
         tint.b = static_cast<unsigned char>(colorFloat[2] * 255.0f);
         tint.a = static_cast<unsigned char>(colorFloat[3] * 255.0f);
-        
-        // Note: For a robust Undo/Redo on the color, you might want to track 
-        // the ImGui::IsItemDeactivatedAfterEdit() state similar to the light components.
     }
 }
 #endif
@@ -124,7 +157,7 @@ void MeshRenderer::OnInspector() {
 nlohmann::json MeshRenderer::Serialize() const {
     return {
         { "type", "MeshRenderer" },
-        { "modelPath", modelPath },
+        { "modelUUID", (uint64_t)m_modelUUID },
         { "tint", { tint.r, tint.g, tint.b, tint.a } }
     };
 }
@@ -138,9 +171,11 @@ void MeshRenderer::Deserialize(const nlohmann::json& j) {
         tint.a = j["tint"][3];
     }
     
-    // Load the model if a path is present in the save file
-    std::string path = j.value("modelPath", "");
-    if (!path.empty()) {
-        LoadModelFromPath(path);
+    // Backward compatibility: Convert old string paths to UUIDs seamlessly
+    if (j.contains("modelUUID")) {
+        LoadModelFromUUID(UUID(j["modelUUID"].get<uint64_t>()));
+    } 
+    else if (j.contains("modelPath")) {
+        LoadModelFromPath(j["modelPath"].get<std::string>());
     }
 }

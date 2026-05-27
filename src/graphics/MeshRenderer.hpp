@@ -5,12 +5,13 @@
 #include <raylib.h>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <core/UUID.hpp>
 
 // Represents a 3D model component that can be attached to a GameObject.
 // Handles loading, unloading, and storing the data required for 3D rendering.
-class MeshRenderer : public Component {
+class [[gnu::visibility("default")]] MeshRenderer : public Component {
     public:
-        std::string modelPath = "";
+        UUID m_modelUUID = 0;
         Model model = { 0 };
         bool isLoaded = false;
         Color tint = WHITE;
@@ -22,8 +23,11 @@ class MeshRenderer : public Component {
         // Returns the component's UI name
         std::string GetName() const override;
 
-        // Loads a 3D model from the disk and applies the lighting shader to it
+        // Resolves the path to a UUID and loads the model
         void LoadModelFromPath(const std::string& path);
+        
+        // Loads a 3D model from its unique identifier
+        void LoadModelFromUUID(UUID uuid);
 
         // Safely unloads the model from the GPU memory
         void UnloadCurrentModel();
