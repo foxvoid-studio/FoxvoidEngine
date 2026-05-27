@@ -444,8 +444,60 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
             // Object picking logic
             // Only trigger if we are NOT painting a TileMap, and we just clicked once
             if (!handledAsPaint && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                
+                // 1. First, try to pick a 2D object
                 GameObject* pickedObject = activeScene.PickObject(worldPos);
-                // Future upgrade: Add 3D Raycasting here if pickedObject is null!
+                
+                // 2. If nothing was picked in 2D, fallback to 3D Raycasting
+                if (!pickedObject && activeScene.Has3DCamera()) {
+                    Camera3D cam3d = camera.GetCamera3D();
+                    
+                    // Convert mouse coordinates on the render texture to Normalized Device Coordinates (NDC)
+                    // Range: [-1, 1] for both X and Y
+                    float nx = (2.0f * renderTexturePos.x) / texWidth - 1.0f;
+                    float ny = 1.0f - (2.0f * renderTexturePos.y) / texHeight; 
+                    
+                    // Extract Inverse View and Inverse Projection matrices
+                    Matrix invView = MatrixInvert(GetCameraMatrix(cam3d));
+                    Matrix invProj = MatrixInvert(MatrixPerspective(cam3d.fovy * DEG2RAD, texWidth / texHeight, 0.01f, 1000.0f));
+                    
+                    // Bulletproof manual Unproject function (Handles Perspective 'W' Divide properly)
+                    auto Unproject = [&](Vector3 ndc) -> Vector3 {
+                        // Step 1: NDC to Camera Space (Inverse Projection)
+                        float cx = invProj.m0*ndc.x + invProj.m4*ndc.y + invProj.m8*ndc.z + invProj.m12;
+                        float cy = invProj.m1*ndc.x + invProj.m5*ndc.y + invProj.m9*ndc.z + invProj.m13;
+                        float cz = invProj.m2*ndc.x + invProj.m6*ndc.y + invProj.m10*ndc.z + invProj.m14;
+                        float cw = invProj.m3*ndc.x + invProj.m7*ndc.y + invProj.m11*ndc.z + invProj.m15;
+                        
+                        // Crucial Perspective Divide
+                        if (cw != 0.0f) {
+                            cx /= cw;
+                            cy /= cw;
+                            cz /= cw;
+                        }
+                        
+                        // Step 2: Camera Space to World Space (Inverse View)
+                        float wx = invView.m0*cx + invView.m4*cy + invView.m8*cz + invView.m12;
+                        float wy = invView.m1*cx + invView.m5*cy + invView.m9*cz + invView.m13;
+                        float wz = invView.m2*cx + invView.m6*cy + invView.m10*cz + invView.m14;
+                        
+                        return { wx, wy, wz };
+                    };
+                    
+                    // Unproject near and far clipping planes
+                    Vector3 nearPoint = Unproject({ nx, ny, -1.0f });
+                    Vector3 farPoint  = Unproject({ nx, ny,  1.0f });
+                    
+                    // Construct the Ray
+                    Ray ray;
+                    ray.position = cam3d.position; // Ray starts at the camera lens
+                    ray.direction = Vector3Normalize(Vector3Subtract(farPoint, nearPoint)); // Points deep into the scene
+                    
+                    // Perform the intersection test
+                    pickedObject = activeScene.PickObject3D(ray);
+                }
+
+                // Apply the selection (will be nullptr if user clicked the empty void)
                 selectedObject = pickedObject;
             }
         }

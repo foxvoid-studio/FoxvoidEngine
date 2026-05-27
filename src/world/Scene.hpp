@@ -22,6 +22,7 @@
 #include <core/AssetRegistry.hpp>
 #include <physics/Transform3d.hpp>
 #include <graphics/Camera3d.hpp>
+#include <graphics/CuboidMesh.hpp>
 
 class Scene {
     public:
@@ -491,6 +492,70 @@ class Scene {
             }
 
             return nullptr;
+        }
+
+        // 3D Raycasting with OBB (Oriented Bounding Box) support
+        // Returns the closest 3D GameObject intersecting with the provided Ray
+        GameObject* PickObject3D(Ray ray) {
+            GameObject* closestObject = nullptr;
+            float closestDistance = std::numeric_limits<float>::max();
+
+            for (auto& go : m_gameObjects) {
+                if (!go->IsActiveInHierarchy()) continue;
+
+                auto transform3d = go->GetComponent<Transform3d>();
+                if (!transform3d) continue;
+
+                // Get the Inverse Global Matrix to transform the Ray into Local Space
+                Matrix globalMat = transform3d->GetGlobalMatrix();
+                Matrix invGlobalMat = MatrixInvert(globalMat);
+
+                // Transform the Ray Origin into Local Space
+                Ray localRay;
+                localRay.position = Vector3Transform(ray.position, invGlobalMat);
+
+                // Transform the Ray Direction into Local Space safely
+                // We do this by projecting a point forward, transforming it, and getting the new vector
+                Vector3 pointAlongRay = Vector3Add(ray.position, ray.direction);
+                Vector3 localPointAlongRay = Vector3Transform(pointAlongRay, invGlobalMat);
+                localRay.direction = Vector3Normalize(Vector3Subtract(localPointAlongRay, localRay.position));
+
+                // Define the Pure Local Bounding Box (Unrotated, unscaled, centered at 0,0,0)
+                BoundingBox localBox;
+                auto cuboid = go->GetComponent<CuboidMesh>();
+                if (cuboid) {
+                    localBox.min = { -cuboid->size.x / 2.0f, -cuboid->size.y / 2.0f, -cuboid->size.z / 2.0f };
+                    localBox.max = {  cuboid->size.x / 2.0f,  cuboid->size.y / 2.0f,  cuboid->size.z / 2.0f };
+                } else {
+                    // Fallback for invisible parent objects (Pivots)
+                    localBox.min = { -0.5f, -0.5f, -0.5f };
+                    localBox.max = {  0.5f,  0.5f,  0.5f };
+                }
+
+                // Test the collision in Local Space! This is perfectly accurate for rotations.
+                RayCollision collision = GetRayCollisionBox(localRay, localBox);
+
+                if (collision.hit) {
+                    // 6. The collision distance is in Local Space. We must convert it back to World Space 
+                    // to accurately compare which object is closest to the camera!
+                    
+                    // Find the exact hit coordinate in Local Space
+                    Vector3 localHitPoint = Vector3Add(localRay.position, Vector3Scale(localRay.direction, collision.distance));
+                    
+                    // Transform the hit coordinate back to World Space
+                    Vector3 worldHitPoint = Vector3Transform(localHitPoint, globalMat);
+                    
+                    // Calculate the true physical distance from the camera lens to the hit point
+                    float worldDistance = Vector3Distance(ray.position, worldHitPoint);
+
+                    if (worldDistance < closestDistance) {
+                        closestDistance = worldDistance;
+                        closestObject = go.get();
+                    }
+                }
+            }
+
+            return closestObject;
         }
 
         // Remove the object from the scene but returns its ownership without destroying it
