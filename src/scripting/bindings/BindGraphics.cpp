@@ -1,17 +1,23 @@
-#include "../ScriptBindings.hpp"
+#include "scripting/ScriptBindings.hpp"
 #include <pybind11/stl.h>
 #include <iostream>
-#include "../../world/GameObject.hpp"
-#include "../../graphics/Graphics.hpp"
-#include "../../graphics/SpriteRenderer.hpp"
-#include "../../graphics/SpriteSheetRenderer.hpp"
-#include "../../graphics/Animation2d.hpp"
-#include "../../graphics/Animator2d.hpp"
-#include "graphics/Camera2d.hpp"
+#include "world/GameObject.hpp"
 #include <world/ComponentRegistry.hpp>
+
+#include "graphics/Graphics.hpp"
+#include "graphics/SpriteRenderer.hpp"
+#include "graphics/SpriteSheetRenderer.hpp"
+#include "graphics/Animation2d.hpp"
+#include "graphics/Animator2d.hpp"
+#include "graphics/Camera2d.hpp"
 #include "graphics/TileMap.hpp"
 #include "graphics/ShapeRenderer.hpp"
 #include "graphics/ParticleSystem2d.hpp"
+
+#include "graphics/Camera3d.hpp"
+#include "graphics/CuboidMesh.hpp"
+#include "graphics/light/DirectionalLight.hpp"
+#include "graphics/light/PointLight.hpp"
 
 void BindGraphics(py::module_& m) {
     m.def("set_pixel_art_mode", [](bool enable) {
@@ -230,6 +236,59 @@ void BindGraphics(py::module_& m) {
             // ParticleSystem2d does not require constructor arguments
             auto* ps = go.AddComponent<ParticleSystem2d>();
             return py::cast(ps, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<Camera3d, Component>(m, "Camera3d")
+        .def(py::init<>())
+        // Explicitly map FOV and main camera flag
+        .def_readwrite("fov", &Camera3d::fov)
+        .def_readwrite("is_main", &Camera3d::isMain)
+        .def_readwrite("projection", &Camera3d::projection);
+
+    ComponentRegistry::Register<Camera3d>("Camera3d",
+        [](GameObject& go, py::args args) -> py::object {
+            auto* cam = go.AddComponent<Camera3d>();
+            return py::cast(cam, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<CuboidMesh, Component>(m, "CuboidMesh")
+        .def(py::init<>())
+        .def_readwrite("size", &CuboidMesh::size)
+        .def_readwrite("color", &CuboidMesh::color)
+        .def_readwrite("is_visible", &CuboidMesh::isVisible)
+        .def_readwrite("draw_wireframe", &CuboidMesh::drawWireframe);
+
+    ComponentRegistry::Register<CuboidMesh>("CuboidMesh",
+        [](GameObject& go, py::args args) -> py::object {
+            auto* mesh = go.AddComponent<CuboidMesh>();
+            return py::cast(mesh, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<DirectionalLight, Component>(m, "DirectionalLight")
+        .def(py::init<>())
+        .def_readwrite("color", &DirectionalLight::color)
+        .def_readwrite("intensity", &DirectionalLight::intensity);
+
+    ComponentRegistry::Register<DirectionalLight>("DirectionalLight",
+        [](GameObject& go, py::args args) -> py::object {
+            auto* light = go.AddComponent<DirectionalLight>();
+            return py::cast(light, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<PointLight, Component>(m, "PointLight")
+        .def(py::init<>())
+        .def_readwrite("color", &PointLight::color)
+        .def_readwrite("intensity", &PointLight::intensity)
+        .def_readwrite("radius", &PointLight::radius);
+
+    ComponentRegistry::Register<PointLight>("PointLight",
+        [](GameObject& go, py::args args) -> py::object {
+            auto* light = go.AddComponent<PointLight>();
+            return py::cast(light, py::return_value_policy::reference);
         }
     );
 }

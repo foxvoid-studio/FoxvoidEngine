@@ -3,17 +3,21 @@
 #include <raymath.h>
 #include <iostream>
 #include <pybind11/stl.h>
+
 #include "world/GameObject.hpp"
-#include "physics/Transform2d.hpp"
 #include <world/ComponentRegistry.hpp>
+
+#include <core/Engine.hpp>
+
+#include "physics/Transform2d.hpp"
 #include "physics/RectCollider.hpp"
 #include "physics/PolygonCollider.hpp"
 #include "physics/RigidBody2d.hpp"
 #include "physics/Collision2D.hpp"
 #include <physics/PhysicsEngine.hpp>
-#include <core/Engine.hpp>
 #include <physics/CircleCollider.hpp>
 #include <physics/CapsuleCollider.hpp>
+#include <physics/Transform3d.hpp>
 
 void BindMathAndPhysics(py::module_& m) {
     py::class_<Vector2>(m, "Vector2")
@@ -64,6 +68,42 @@ void BindMathAndPhysics(py::module_& m) {
         .def_readwrite("width", &Rectangle::width)
         .def_readwrite("height", &Rectangle::height);
 
+    py::class_<Vector3>(m, "Vector3")
+        .def(py::init<>())
+        .def(py::init<float, float, float>(), py::arg("x"), py::arg("y"), py::arg("z"))
+        .def_readwrite("x", &Vector3::x)
+        .def_readwrite("y", &Vector3::y)
+        .def_readwrite("z", &Vector3::z)
+        // Operator Overloading for 3D Vectors
+        .def("__add__", [](const Vector3& a, const Vector3& b) {
+            return Vector3Add(a, b);
+        })
+        .def("__sub__", [](const Vector3& a, const Vector3& b) {
+            return Vector3Subtract(a, b);
+        })
+        .def("__mul__", [](const Vector3& a, float scalar) {
+            return Vector3Scale(a, scalar); 
+        })
+        .def("__truediv__", [](const Vector3& a, float scalar) {
+            if (scalar == 0.0f) return a;
+            return Vector3Scale(a, 1.0f / scalar); 
+        })
+
+        // 3D Utility Methods
+        .def("length", [](const Vector3& a) {
+            return Vector3Length(a);
+        })
+        .def("distance_to", [](const Vector3& a, const Vector3& b) {
+            return Vector3Distance(a, b);
+        })
+        .def("normalized", [](const Vector3& a) {
+            return Vector3Normalize(a);
+        })
+        
+        .def("__repr__", [](const Vector3& a) {
+            return "Vector3(" + std::to_string(a.x) + ", " + std::to_string(a.y) + ", " + std::to_string(a.z) + ")";
+        });
+
     py::class_<Transform2d, Component>(m, "Transform2d")
         .def(py::init<float, float>(), py::arg("x") = 0.0f, py::arg("y") = 0.0f)
         
@@ -93,6 +133,36 @@ void BindMathAndPhysics(py::module_& m) {
             if (args.size() >= 2) y = args[1].cast<float>();
             
             auto* t = go.AddComponent<Transform2d>(x, y);
+            return py::cast(t, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<Transform3d, Component>(m, "Transform3d")
+        .def(py::init<float, float, float>(), py::arg("x") = 0.0f, py::arg("y") = 0.0f, py::arg("z") = 0.0f)
+        
+        // Local properties exposed to Python
+        .def_readwrite("position", &Transform3d::position)
+        .def_readwrite("rotation", &Transform3d::rotation)
+        .def_readwrite("scale", &Transform3d::scale)
+
+        // Global Getters
+        .def("get_global_position", &Transform3d::GetGlobalPosition)
+        .def("get_global_rotation", &Transform3d::GetGlobalRotation)
+        .def("get_global_scale", &Transform3d::GetGlobalScale)
+        
+        // Global Setters
+        .def("set_global_position", &Transform3d::SetGlobalPosition, py::arg("target_global_pos"));
+
+    ComponentRegistry::Register<Transform3d>("Transform3d", 
+        [](GameObject& go, py::args args) -> py::object {
+            float x = 0.0f, y = 0.0f, z = 0.0f;
+            
+            // Extract optional X, Y, Z if Python provided them
+            if (args.size() >= 1) x = args[0].cast<float>();
+            if (args.size() >= 2) y = args[1].cast<float>();
+            if (args.size() >= 3) z = args[2].cast<float>();
+            
+            auto* t = go.AddComponent<Transform3d>(x, y, z);
             return py::cast(t, py::return_value_policy::reference);
         }
     );
