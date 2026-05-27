@@ -1402,5 +1402,122 @@ class CapsuleCollider(Component):
         and cannot be strictly smaller than radius * 2.
         """
         ...
- 
+
+
+class Vector3:
+    """A 3D vector representing mathematical points or directions in 3D space."""
+    x: float
+    y: float
+    z: float
+    
+    def __init__(self, x: float = 0.0, y: float = 0.0, z: float = 0.0) -> None:
+        """Initializes the vector with the given x, y, and z coordinates."""
+        ...
+
+    def __add__(self, other: 'Vector3') -> 'Vector3':
+        """Adds another Vector3 to this one and returns a new Vector3."""
+        ...
+
+    def __sub__(self, other: 'Vector3') -> 'Vector3':
+        """Subtracts another Vector3 from this one and returns a new Vector3."""
+        ...
+
+    def __mul__(self, scalar: float) -> 'Vector3':
+        """Multiplies the vector by a scalar value and returns a new Vector3."""
+        ...
+
+    def __truediv__(self, scalar: float) -> 'Vector3':
+        """Divides the vector by a scalar value and returns a new Vector3. Prevents division by zero."""
+        ...
+
+    def length(self) -> float:
+        """Calculates and returns the magnitude (length) of the vector."""
+        ...
+
+    def distance_to(self, other: 'Vector3') -> float:
+        """Calculates the exact distance between this vector and another Vector3."""
+        ...
+
+    def normalized(self) -> 'Vector3':
+        """Returns a new Vector3 with a length of exactly 1.0 (maintaining the same direction)."""
+        ...
+
+    def __repr__(self) -> str:
+        """Returns a string representation of the vector for debugging (e.g., 'Vector3(1.0, 2.5, 0.0)')."""
+        ...
+
+class Transform3d(Component):
+    """Defines the local position, rotation, and scale of a GameObject in 3D space."""
+    position: Vector3
+    rotation: Vector3
+    scale: Vector3
+    
+    def get_global_position(self) -> Vector3:
+        """Calculates and returns the absolute world position, taking parent transforms into account."""
+        ...
+        
+    def get_global_rotation(self) -> Vector3:
+        """Calculates and returns the absolute world rotation in Euler angles (degrees)."""
+        ...
+        
+    def get_global_scale(self) -> Vector3:
+        """Calculates and returns the absolute world scale."""
+        ...
+        
+    def set_global_position(self, pos: Vector3) -> None:
+        """Sets the absolute world position. Automatically calculates the required local position."""
+        ...
+
+class Camera3d(Component):
+    """A 3D camera component used to render the scene from a specific viewpoint."""
+    fov: float
+    is_main: bool
+    projection: int # 0 for Perspective, 1 for Orthographic
+    
+    def __init__(self) -> None:
+        """Initializes the 3D camera with default perspective projection."""
+        ...
+
+class CuboidMesh(Component):
+    """A basic 3D rectangular prism (cube) component used for simple geometry or prototyping."""
+    size: Vector3
+    color: Color
+    is_visible: bool
+    draw_wireframe: bool
+    
+    def __init__(self) -> None:
+        """Initializes a white 1x1x1 cuboid."""
+        ...
+
+class MeshRenderer(Component):
+    """Component responsible for loading and rendering complex 3D models (.glb, .obj, etc.)."""
+    tint: Color
+    is_loaded: bool
+    
+    def __init__(self) -> None:
+        """Initializes an empty MeshRenderer."""
+        ...
+        
+    def load_model(self, path: str) -> None:
+        """Loads a 3D model from the specified file path and prepares it for rendering with lighting."""
+        ...
+
+class DirectionalLight(Component):
+    """A global light source that emits light in a specific direction infinitely (e.g., the Sun)."""
+    color: Color
+    intensity: float
+    
+    def __init__(self) -> None:
+        """Initializes a white directional light with intensity 1.0. Direction is defined by the Transform3d rotation."""
+        ...
+
+class PointLight(Component):
+    """A light source that emits light in all directions from its exact position, fading over a distance."""
+    color: Color
+    intensity: float
+    radius: float
+    
+    def __init__(self) -> None:
+        """Initializes a white point light with intensity 1.0 and a default falloff radius of 10.0 units."""
+        ...
 )";

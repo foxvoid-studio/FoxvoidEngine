@@ -18,6 +18,7 @@
 #include "graphics/CuboidMesh.hpp"
 #include "graphics/light/DirectionalLight.hpp"
 #include "graphics/light/PointLight.hpp"
+#include "graphics/MeshRenderer.hpp"
 
 void BindGraphics(py::module_& m) {
     m.def("set_pixel_art_mode", [](bool enable) {
@@ -289,6 +290,19 @@ void BindGraphics(py::module_& m) {
         [](GameObject& go, py::args args) -> py::object {
             auto* light = go.AddComponent<PointLight>();
             return py::cast(light, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<MeshRenderer, Component>(m, "MeshRenderer")
+        .def(py::init<>())
+        .def("load_model", &MeshRenderer::LoadModelFromPath, py::arg("path"))
+        .def_readwrite("tint", &MeshRenderer::tint)
+        .def_readonly("is_loaded", &MeshRenderer::isLoaded);
+
+    ComponentRegistry::Register<MeshRenderer>("MeshRenderer",
+        [](GameObject& go, py::args args) -> py::object {
+            auto* mr = go.AddComponent<MeshRenderer>();
+            return py::cast(mr, py::return_value_policy::reference);
         }
     );
 }

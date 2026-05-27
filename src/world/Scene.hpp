@@ -6,13 +6,13 @@
 #include <iostream>
 #include <algorithm>
 #include "GameObject.hpp"
-#include "../physics/Transform2d.hpp"
+#include "physics/Transform2d.hpp"
 #include <graphics/ShapeRenderer.hpp>
 #include <graphics/SpriteRenderer.hpp>
 #include <graphics/SpriteSheetRenderer.hpp>
 #include <graphics/Animation2d.hpp>
-#include "../scripting/ScriptComponent.hpp"
-#include "../graphics/Animator2d.hpp"
+#include "scripting/ScriptComponent.hpp"
+#include "graphics/Animator2d.hpp"
 #include <scripting/ScriptBindings.hpp>
 #include "ComponentRegistry.hpp"
 #include "physics/PhysicsEngine.hpp"
@@ -24,6 +24,7 @@
 #include <graphics/Camera3d.hpp>
 #include <graphics/CuboidMesh.hpp>
 #include "graphics/light/LightingSystem.hpp"
+#include "graphics/MeshRenderer.hpp"
 
 class Scene {
     public:
@@ -534,10 +535,17 @@ class Scene {
                 // Define the Pure Local Bounding Box (Unrotated, unscaled, centered at 0,0,0)
                 BoundingBox localBox;
                 auto cuboid = go->GetComponent<CuboidMesh>();
+                auto meshRenderer = go->GetComponent<MeshRenderer>();
+
                 if (cuboid) {
                     localBox.min = { -cuboid->size.x / 2.0f, -cuboid->size.y / 2.0f, -cuboid->size.z / 2.0f };
                     localBox.max = {  cuboid->size.x / 2.0f,  cuboid->size.y / 2.0f,  cuboid->size.z / 2.0f };
-                } else {
+                } 
+                else if (meshRenderer && meshRenderer->isLoaded) {
+                    // Automatically calculate the bounding box based on the loaded 3D model geometry
+                    localBox = GetModelBoundingBox(meshRenderer->model);
+                }
+                else {
                     // Fallback for invisible parent objects (Pivots)
                     localBox.min = { -0.5f, -0.5f, -0.5f };
                     localBox.max = {  0.5f,  0.5f,  0.5f };

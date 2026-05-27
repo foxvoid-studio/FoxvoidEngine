@@ -9,8 +9,10 @@
 #include "graphics/Camera2d.hpp"
 #include "graphics/TileMap.hpp"
 #include "graphics/ParticleSystem2d.hpp"
+
 #include "graphics/Camera3d.hpp"
 #include "graphics/CuboidMesh.hpp"
+#include "graphics/MeshRenderer.hpp"
 
 #include "graphics/light/DirectionalLight.hpp"
 #include "graphics/light/PointLight.hpp"
@@ -57,7 +59,7 @@ namespace EngineSetup {
         ComponentRegistry::RegisterCPP<CircleCollider>("CircleCollider", "Physics");
         ComponentRegistry::RegisterCPP<CapsuleCollider>("CapsuleCollider", "Physics");
 
-        // Graphics
+        // Graphics 2d
         ComponentRegistry::RegisterCPP<ShapeRenderer>("ShapeRenderer", "Graphics");
         ComponentRegistry::RegisterCPP<SpriteRenderer>("SpriteRenderer", "Graphics");
         ComponentRegistry::RegisterCPP<SpriteSheetRenderer>("SpriteSheetRenderer", "Graphics");
@@ -66,10 +68,13 @@ namespace EngineSetup {
         ComponentRegistry::RegisterCPP<Camera2d>("Camera2d", "Graphics");
         ComponentRegistry::RegisterCPP<TileMap>("TileMap", "Graphics");
         ComponentRegistry::RegisterCPP<ParticleSystem2d>("ParticleSystem2d", "Graphics");
+
+        // Graphics 3d
         ComponentRegistry::RegisterCPP<Camera3d>("Camera3d", "Graphics");
         ComponentRegistry::RegisterCPP<CuboidMesh>("CuboidMesh", "Graphics");
         ComponentRegistry::RegisterCPP<DirectionalLight>("DirectionalLight", "Graphics");
-        ComponentRegistry::RegisterCPP<PointLight>("PointLight", "Graphics");
+        ComponentRegistry::RegisterCPP<PointLight>("PointLight", "Graphics"); 
+        ComponentRegistry::RegisterCPP<MeshRenderer>("MeshRenderer", "Graphics");
 
         // Gui
         ComponentRegistry::RegisterCPP<RectTransform>("RectTransform", "GUI");
