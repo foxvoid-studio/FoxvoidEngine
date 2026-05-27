@@ -108,7 +108,7 @@ To build Foxvoid Engine, you will need:
 
 ```bash
 # Clone the repository
-git clone [https://github.com/yourusername/FoxvoidEngine.git](https://github.com/yourusername/FoxvoidEngine.git)
+git clone [https://github.com/foxvoid-studio/FoxvoidEngine.git](https://github.com/foxvoid-studio/FoxvoidEngine.git)
 cd FoxvoidEngine
 
 # Create a build directory
