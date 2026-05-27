@@ -15,6 +15,7 @@
 #include "ImGuizmo.h"
 #endif
 #include <core/AssetRegistry.hpp>
+#include <graphics/light/LightingSystem.hpp>
 
 Editor::Editor(int windowWidth, int windowHeight) {
     // Initialize Console Redirects
@@ -71,6 +72,9 @@ void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunn
         ClearBackground(Color{ 40, 40, 40, 255 });
 
         if (activeScene.Has3DCamera()) {
+            // Update lighing parameters right before rendering the 3D scene
+            LightingSystem::Update(activeScene, m_editorCamera->GetCamera3D());
+
             m_editorCamera->Begin3D();
                 if (m_showGrid3D) m_editorCamera->DrawGrid3D(100, 1.0f);
                 activeScene.Render3D();

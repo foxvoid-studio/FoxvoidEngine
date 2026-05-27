@@ -12,6 +12,9 @@
 #include "graphics/Camera3d.hpp"
 #include "graphics/CuboidMesh.hpp"
 
+#include "graphics/light/DirectionalLight.hpp"
+#include "graphics/light/PointLight.hpp"
+
 #include "scripting/ScriptComponent.hpp"
 
 #include "physics/RectCollider.hpp"
@@ -65,6 +68,8 @@ namespace EngineSetup {
         ComponentRegistry::RegisterCPP<ParticleSystem2d>("ParticleSystem2d", "Graphics");
         ComponentRegistry::RegisterCPP<Camera3d>("Camera3d", "Graphics");
         ComponentRegistry::RegisterCPP<CuboidMesh>("CuboidMesh", "Graphics");
+        ComponentRegistry::RegisterCPP<DirectionalLight>("DirectionalLight", "Graphics");
+        ComponentRegistry::RegisterCPP<PointLight>("PointLight", "Graphics");
 
         // Gui
         ComponentRegistry::RegisterCPP<RectTransform>("RectTransform", "GUI");

@@ -14,6 +14,7 @@
 #include "graphics/TileMap.hpp"
 #include "GameStateManager.hpp"
 #include "Mouse.hpp"
+#include "graphics/light/LightingSystem.hpp"
 
 #ifndef STANDALONE_MODE
 #include "editor/Editor.hpp"
@@ -51,6 +52,8 @@ Engine::Engine(int width, int height, const std::string& title)
         // Window already exists, just update the title
         SetWindowTitle(m_windowTitle.c_str());
     }
+
+    LightingSystem::Initialize();
     
     InitAudioDevice();
 
@@ -94,6 +97,8 @@ Engine::~Engine() {
     UnloadRenderTexture(m_gameTexture);
 
     CloseAudioDevice();
+
+    LightingSystem::Shutdown();
 
     // Close the Raylib window and free graphics resources
     CloseWindow();

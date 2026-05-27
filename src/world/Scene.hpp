@@ -23,6 +23,7 @@
 #include <physics/Transform3d.hpp>
 #include <graphics/Camera3d.hpp>
 #include <graphics/CuboidMesh.hpp>
+#include "graphics/light/LightingSystem.hpp"
 
 class Scene {
     public:
@@ -98,13 +99,23 @@ class Scene {
         }
 
         void Render3D() {
-            for (auto& go : m_gameObjects) {
-                if (!go->IsActiveInHierarchy()) continue;
+            // Apply the active lighting shader
 
-                if (go->GetComponent<Transform3d>()) {
-                    go->Render();
+            LightingSystem::Begin();
+
+                for (auto& go : m_gameObjects) {
+                    if (!go->IsActiveInHierarchy()) continue;
+
+                    auto transform = go->GetComponent<Transform3d>();
+                    if (transform) {
+                        // Inject the Matrix into the GPU before drawing
+                        LightingSystem::SetObjectModelMatrix(transform->GetGlobalMatrix());
+
+                        go->Render();
+                    }
                 }
-            }
+
+            LightingSystem::End();
         }
 
         // Triggers the render loop for all GameObjects in the scene based on Z-Index
