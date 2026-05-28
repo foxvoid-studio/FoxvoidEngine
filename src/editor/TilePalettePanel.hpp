@@ -8,7 +8,8 @@ enum class TileTool {
     Brush,
     Eraser,
     Bucket,
-    Eyedropper
+    Eyedropper,
+    Rectangle
 };
 
 class TilePalettePanel {

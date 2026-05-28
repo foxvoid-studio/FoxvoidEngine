@@ -9,7 +9,7 @@
 #include <graphics/TileMap.hpp>
 #include "commands/TileMapPaintCommand.hpp"
 
-// Note the & on currentTileTool
+// Note the & on selectedTileID, selectedLayer, and currentTileTool
 void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject, int& selectedTileID, int& selectedLayer, TileTool& currentTileTool, EditorViewMode& currentViewMode) {    
     // Remove inner margins (padding) so the render texture touches the window borders
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -270,12 +270,16 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
         static TileMap* activePaintMap = nullptr;
         static int activePaintLayer = 0;
 
+        // Rectangle Tool State
+        static int rectStartX = 0, rectStartY = 0;
+        static int rectCurrentX = 0, rectCurrentY = 0;
+
         // We only allow ImGuizmo to block scene interactions if it is currently visible
         bool isGizmoBlocking = showGizmo && ImGuizmo::IsOver();
 
         // Mouse picking logic
         if (!isGizmoBlocking && isImageHovered) {
-            // Calculate World Position of the mouse (same as before)
+            // Calculate World Position of the mouse
             ImVec2 mousePosAbsolute = ImGui::GetMousePos();
             Vector2 mousePosRel = {
                 mousePosAbsolute.x - imagePosAbsolute.x,
@@ -299,6 +303,21 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                         // Define what we are going to paint based on the active tool
                         int paintID = (currentTileTool == TileTool::Eraser) ? -1 : selectedTileID;
 
+                        // Calculate grid coordinates upfront
+                        auto position = transform->GetGlobalPosition();
+                        float localX = worldPos.x - position.x;
+                        float localY = worldPos.y - position.y;
+                        float scaledWidth = tileMap->tileSize.x * transform->scale.x;
+                        float scaledHeight = tileMap->tileSize.y * transform->scale.y;
+
+                        int gridX = -1;
+                        int gridY = -1;
+
+                        if (localX >= 0 && localY >= 0) {
+                            gridX = (int)(localX / scaledWidth);
+                            gridY = (int)(localY / scaledHeight);
+                        }
+
                         // The stroke starts, save the initial state
                         if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                             isPainting = true;
@@ -309,16 +328,7 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                             // EYEDROPPER TOOL LOGIC
                             // ----------------------------------------------------
                             if (currentTileTool == TileTool::Eyedropper) {
-                                auto position = transform->GetGlobalPosition();
-                                float localX = worldPos.x - position.x;
-                                float localY = worldPos.y - position.y;
-                                float scaledWidth = tileMap->tileSize.x * transform->scale.x;
-                                float scaledHeight = tileMap->tileSize.y * transform->scale.y;
-
-                                if (localX >= 0 && localY >= 0) {
-                                    int gridX = (int)(localX / scaledWidth);
-                                    int gridY = (int)(localY / scaledHeight);
-                                    
+                                if (gridX >= 0 && gridY >= 0) {
                                     int pickedID = tileMap->GetTile(activePaintLayer, gridX, gridY);
                                     
                                     // If we click on a tile, we select it. If we click on an empty space, we select the Eraser (-1)
@@ -332,6 +342,16 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                                 isPainting = false;
                                 activePaintMap = nullptr;
                             } 
+                            // ----------------------------------------------------
+                            // RECTANGLE TOOL INIT
+                            // ----------------------------------------------------
+                            else if (currentTileTool == TileTool::Rectangle) {
+                                initialLayerData = tileMap->GetLayerData(activePaintLayer);
+                                rectStartX = gridX;
+                                rectStartY = gridY;
+                                rectCurrentX = gridX;
+                                rectCurrentY = gridY;
+                            }
                             else {
                                 // ONLY make a copy for Undo/Redo if we are actually painting or bucketing
                                 initialLayerData = tileMap->GetLayerData(activePaintLayer);
@@ -340,17 +360,7 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                                 // BUCKET TOOL LOGIC
                                 // ----------------------------------------------------
                                 if (currentTileTool == TileTool::Bucket) {
-                                    auto position = transform->GetGlobalPosition();
-                                    float localX = worldPos.x - position.x;
-                                    float localY = worldPos.y - position.y;
-                                    float scaledWidth = tileMap->tileSize.x * transform->scale.x;
-                                    float scaledHeight = tileMap->tileSize.y * transform->scale.y;
-
-                                    if (localX >= 0 && localY >= 0) {
-                                        int gridX = (int)(localX / scaledWidth);
-                                        int gridY = (int)(localY / scaledHeight);
-                                        
-                                        // Execute the flood fill on the active layer
+                                    if (gridX >= 0 && gridY >= 0) {
                                         tileMap->FloodFill(activePaintLayer, gridX, gridY, paintID);
                                     }
 
@@ -367,27 +377,50 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                         }
                         
                         // ----------------------------------------------------
-                        // BRUSH AND ERASER LOGIC (Continuous drag)
+                        // CONTINUOUS DRAG LOGIC (Brush, Eraser, Rectangle Preview)
                         // ----------------------------------------------------
-                        if (isPainting && currentTileTool != TileTool::Bucket && currentTileTool != TileTool::Eyedropper && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-                            
-                            // Calculate local position relative to the TileMap's origin
-                            auto position = transform->GetGlobalPosition();
-                            float localX = worldPos.x - position.x;
-                            float localY = worldPos.y - position.y;
-                            
-                            // Account for the object's scale
-                            float scaledTileWidth = tileMap->tileSize.x * transform->scale.x;
-                            float scaledTileHeight = tileMap->tileSize.y * transform->scale.y;
-                            
-                            // Prevent negative index wrapping if mouse is above/left of the map
-                            if (localX >= 0 && localY >= 0) {
-                                int gridX = (int)(localX / scaledTileWidth);
-                                int gridY = (int)(localY / scaledTileHeight);
-                                
-                                // Set the tile on the active layer
-                                tileMap->SetTile(activePaintLayer, gridX, gridY, paintID);
+                        if (isPainting && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                            if (currentTileTool == TileTool::Rectangle) {
+                                // Update current rectangle corner for preview drawing
+                                rectCurrentX = gridX;
+                                rectCurrentY = gridY;
                             }
+                            else if (currentTileTool != TileTool::Bucket && currentTileTool != TileTool::Eyedropper) {
+                                // Prevent negative index wrapping if mouse is above/left of the map
+                                if (gridX >= 0 && gridY >= 0) {
+                                    tileMap->SetTile(activePaintLayer, gridX, gridY, paintID);
+                                }
+                            }
+                        }
+
+                        // ----------------------------------------------------
+                        // RECTANGLE TOOL PREVIEW DRAWING
+                        // ----------------------------------------------------
+                        if (isPainting && currentTileTool == TileTool::Rectangle && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                            int minX = std::max(0, std::min(rectStartX, rectCurrentX));
+                            int maxX = std::min(tileMap->gridWidth - 1, std::max(rectStartX, rectCurrentX));
+                            int minY = std::max(0, std::min(rectStartY, rectCurrentY));
+                            int maxY = std::min(tileMap->gridHeight - 1, std::max(rectStartY, rectCurrentY));
+
+                            // Calculate Screen coordinates for the preview rectangle
+                            Vector2 topLeftWorld = { position.x + minX * scaledWidth, position.y + minY * scaledHeight };
+                            Vector2 bottomRightWorld = { position.x + (maxX + 1) * scaledWidth, position.y + (maxY + 1) * scaledHeight };
+
+                            Vector2 topLeftTex = GetWorldToScreen2D(topLeftWorld, camera.GetCamera());
+                            Vector2 bottomRightTex = GetWorldToScreen2D(bottomRightWorld, camera.GetCamera());
+
+                            ImVec2 p_min = ImVec2(
+                                imagePosAbsolute.x + (topLeftTex.x / texWidth) * drawSize.x,
+                                imagePosAbsolute.y + (topLeftTex.y / texHeight) * drawSize.y
+                            );
+                            ImVec2 p_max = ImVec2(
+                                imagePosAbsolute.x + (bottomRightTex.x / texWidth) * drawSize.x,
+                                imagePosAbsolute.y + (bottomRightTex.y / texHeight) * drawSize.y
+                            );
+
+                            // Draw a semi-transparent orange rectangle to preview the fill area
+                            ImGui::GetWindowDrawList()->AddRectFilled(p_min, p_max, IM_COL32(230, 115, 25, 80)); 
+                            ImGui::GetWindowDrawList()->AddRect(p_min, p_max, IM_COL32(230, 115, 25, 255), 0.0f, 0, 2.0f); 
                         }
                     }
                 }
@@ -407,6 +440,22 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
             isPainting = false;
             
             if (activePaintMap) {
+                // Apply Rectangle Tool fill
+                if (currentTileTool == TileTool::Rectangle) {
+                    int minX = std::max(0, std::min(rectStartX, rectCurrentX));
+                    int maxX = std::min(activePaintMap->gridWidth - 1, std::max(rectStartX, rectCurrentX));
+                    int minY = std::max(0, std::min(rectStartY, rectCurrentY));
+                    int maxY = std::min(activePaintMap->gridHeight - 1, std::max(rectStartY, rectCurrentY));
+
+                    int paintID = selectedTileID; // Works as box-eraser if -1
+
+                    for (int y = minY; y <= maxY; ++y) {
+                        for (int x = minX; x <= maxX; ++x) {
+                            activePaintMap->SetTile(activePaintLayer, x, y, paintID);
+                        }
+                    }
+                }
+
                 std::vector<int> currentData = activePaintMap->GetLayerData(activePaintLayer);
                 
                 // Only add a command if the user actually modified at least one tile

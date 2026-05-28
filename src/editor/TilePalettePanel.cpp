@@ -92,7 +92,7 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileTool& a
             if (isSelected) ImGui::PopStyleColor(2);
         };
 
-        // Draw tool buttons (Brush, Eraser, Bucket, Eyedropper)
+        // Draw tool buttons (Brush, Eraser, Bucket, Eyedropper, Rectangle)
         drawToolButton(ICON_FA_PAINTBRUSH, "Brush (Paint single tiles)", TileTool::Brush, activeTool);
         ImGui::SameLine();
         drawToolButton(ICON_FA_ERASER, "Eraser (Remove tiles)", TileTool::Eraser, activeTool);
@@ -100,6 +100,8 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileTool& a
         drawToolButton(ICON_FA_FILL_DRIP, "Bucket (Flood fill area)", TileTool::Bucket, activeTool);
         ImGui::SameLine();
         drawToolButton(ICON_FA_EYE_DROPPER, "Eyedropper (Pick tile from scene)", TileTool::Eyedropper, activeTool);
+        ImGui::SameLine();
+        drawToolButton(ICON_FA_SQUARE, "Rectangle (Draw a filled box of tiles)", TileTool::Rectangle, activeTool);
 
         ImGui::SameLine();
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 10); // Spacing
