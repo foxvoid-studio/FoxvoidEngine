@@ -26,6 +26,21 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileTool& a
 
         // Safety clamps just in case a layer or tileset was deleted
         if (selectedLayer >= layers.size()) selectedLayer = 0;
+        
+        // --- Auto-Switch Tileset UX ---
+        // If the Eyedropper picked a new tile from the scene, we want the palette 
+        // to automatically switch to the correct Tileset tab.
+        static int previousTileID = -2;
+        if (selectedTileID != previousTileID && selectedTileID != -1) {
+            for (int i = 0; i < tilesets.size(); ++i) {
+                if (selectedTileID >= tilesets[i].firstTileID && selectedTileID < tilesets[i].firstTileID + tilesets[i].tileCount) {
+                    m_selectedTilesetIndex = i;
+                    break;
+                }
+            }
+        }
+        previousTileID = selectedTileID;
+
         if (m_selectedTilesetIndex >= tilesets.size()) m_selectedTilesetIndex = 0;
 
         // --- Layer Selection ---
@@ -34,7 +49,7 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileTool& a
             for (int i = 0; i < layers.size(); i++) {
                 bool isSelected = (selectedLayer == i);
                 if (ImGui::Selectable(layers[i].name.c_str(), isSelected)) {
-                    selectedLayer = i;
+                    selectedLayer = i; // Mettre à jour l'index quand l'utilisateur clique
                 }
                 if (isSelected) ImGui::SetItemDefaultFocus();
             }
@@ -42,7 +57,7 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileTool& a
         }
         ImGui::Separator();
 
-        // --- Tileset Selection (New Dropdown) ---
+        // --- Tileset Selection (Dropdown) ---
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
         if (ImGui::BeginCombo("##TilesetCombo", tilesets[m_selectedTilesetIndex].name.c_str())) {
             for (int i = 0; i < tilesets.size(); i++) {
@@ -77,12 +92,14 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileTool& a
             if (isSelected) ImGui::PopStyleColor(2);
         };
 
-        // Draw tool buttons (Brush, Eraser, Bucket)
+        // Draw tool buttons (Brush, Eraser, Bucket, Eyedropper)
         drawToolButton(ICON_FA_PAINTBRUSH, "Brush (Paint single tiles)", TileTool::Brush, activeTool);
         ImGui::SameLine();
         drawToolButton(ICON_FA_ERASER, "Eraser (Remove tiles)", TileTool::Eraser, activeTool);
         ImGui::SameLine();
         drawToolButton(ICON_FA_FILL_DRIP, "Bucket (Flood fill area)", TileTool::Bucket, activeTool);
+        ImGui::SameLine();
+        drawToolButton(ICON_FA_EYE_DROPPER, "Eyedropper (Pick tile from scene)", TileTool::Eyedropper, activeTool);
 
         ImGui::SameLine();
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 10); // Spacing
@@ -97,6 +114,8 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileTool& a
         // Display the currently selected Tile ID (Global ID)
         if (activeTool == TileTool::Eraser) {
             ImGui::TextDisabled("Tool: Eraser Active");
+        } else if (activeTool == TileTool::Eyedropper) {
+            ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "Pick a tile in the Scene...");
         } else {
             ImGui::Text("Tile (Global ID): %d", selectedTileID);
         }
@@ -163,8 +182,8 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileTool& a
                         // Crucial: Add the tileset offset to get the Global ID
                         selectedTileID = activeTileset.firstTileID + localTileID;
                         
-                        // Automatically switch back to Brush if a tile is picked while the Eraser is active
-                        if (activeTool == TileTool::Eraser) {
+                        // Automatically switch back to Brush if a tile is picked while the Eraser or Eyedropper is active
+                        if (activeTool == TileTool::Eraser || activeTool == TileTool::Eyedropper) {
                             activeTool = TileTool::Brush;
                         }
                     }

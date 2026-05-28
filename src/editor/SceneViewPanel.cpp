@@ -9,7 +9,8 @@
 #include <graphics/TileMap.hpp>
 #include "commands/TileMapPaintCommand.hpp"
 
-void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject, int selectedTileID, int selectedLayer, TileTool currentTileTool, EditorViewMode& currentViewMode) {    
+// Note the & on currentTileTool
+void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject, int& selectedTileID, int& selectedLayer, TileTool& currentTileTool, EditorViewMode& currentViewMode) {    
     // Remove inner margins (padding) so the render texture touches the window borders
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::Begin("Scene View");
@@ -303,11 +304,11 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                             isPainting = true;
                             activePaintMap = tileMap;
                             activePaintLayer = selectedLayer;
-                            // Make a copy of the active layer for Undo/Redo
-                            initialLayerData = tileMap->GetLayerData(activePaintLayer);
 
-                            // Handle Bucket Tool execution immediately on click
-                            if (currentTileTool == TileTool::Bucket) {
+                            // ----------------------------------------------------
+                            // EYEDROPPER TOOL LOGIC
+                            // ----------------------------------------------------
+                            if (currentTileTool == TileTool::Eyedropper) {
                                 auto position = transform->GetGlobalPosition();
                                 float localX = worldPos.x - position.x;
                                 float localY = worldPos.y - position.y;
@@ -318,23 +319,57 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                                     int gridX = (int)(localX / scaledWidth);
                                     int gridY = (int)(localY / scaledHeight);
                                     
-                                    // Execute the flood fill on the active layer
-                                    tileMap->FloodFill(activePaintLayer, gridX, gridY, paintID);
+                                    int pickedID = tileMap->GetTile(activePaintLayer, gridX, gridY);
+                                    
+                                    // If we click on a tile, we select it. If we click on an empty space, we select the Eraser (-1)
+                                    selectedTileID = pickedID; 
+                                    
+                                    // Auto-switch to Brush (or Eraser if the cell was empty)
+                                    currentTileTool = (selectedTileID == -1) ? TileTool::Eraser : TileTool::Brush;
                                 }
 
-                                // The bucket is an instant action, so we finalize the stroke immediately
+                                // Cancel the painting stroke since the Eyedropper is just a read action
                                 isPainting = false;
-                                std::vector<int> currentData = activePaintMap->GetLayerData(activePaintLayer);
-                                
-                                if (initialLayerData != currentData) {
-                                    CommandHistory::AddCommand(std::make_unique<TileMapPaintCommand>(activePaintMap, activePaintLayer, initialLayerData, currentData));
-                                }
                                 activePaintMap = nullptr;
+                            } 
+                            else {
+                                // ONLY make a copy for Undo/Redo if we are actually painting or bucketing
+                                initialLayerData = tileMap->GetLayerData(activePaintLayer);
+
+                                // ----------------------------------------------------
+                                // BUCKET TOOL LOGIC
+                                // ----------------------------------------------------
+                                if (currentTileTool == TileTool::Bucket) {
+                                    auto position = transform->GetGlobalPosition();
+                                    float localX = worldPos.x - position.x;
+                                    float localY = worldPos.y - position.y;
+                                    float scaledWidth = tileMap->tileSize.x * transform->scale.x;
+                                    float scaledHeight = tileMap->tileSize.y * transform->scale.y;
+
+                                    if (localX >= 0 && localY >= 0) {
+                                        int gridX = (int)(localX / scaledWidth);
+                                        int gridY = (int)(localY / scaledHeight);
+                                        
+                                        // Execute the flood fill on the active layer
+                                        tileMap->FloodFill(activePaintLayer, gridX, gridY, paintID);
+                                    }
+
+                                    // The bucket is an instant action, so we finalize the stroke immediately
+                                    isPainting = false;
+                                    std::vector<int> currentData = activePaintMap->GetLayerData(activePaintLayer);
+                                    
+                                    if (initialLayerData != currentData) {
+                                        CommandHistory::AddCommand(std::make_unique<TileMapPaintCommand>(activePaintMap, activePaintLayer, initialLayerData, currentData));
+                                    }
+                                    activePaintMap = nullptr;
+                                }
                             }
                         }
                         
-                        // Handle Brush and Eraser (Continuous drag)
-                        if (isPainting && currentTileTool != TileTool::Bucket && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                        // ----------------------------------------------------
+                        // BRUSH AND ERASER LOGIC (Continuous drag)
+                        // ----------------------------------------------------
+                        if (isPainting && currentTileTool != TileTool::Bucket && currentTileTool != TileTool::Eyedropper && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
                             
                             // Calculate local position relative to the TileMap's origin
                             auto position = transform->GetGlobalPosition();
