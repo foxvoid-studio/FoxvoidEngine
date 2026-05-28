@@ -13,6 +13,7 @@
 #include "graphics/Camera3d.hpp"
 #include "graphics/CuboidMesh.hpp"
 #include "graphics/MeshRenderer.hpp"
+#include "graphics/Animator3d.hpp"
 
 #include "graphics/light/DirectionalLight.hpp"
 #include "graphics/light/PointLight.hpp"
@@ -75,6 +76,7 @@ namespace EngineSetup {
         ComponentRegistry::RegisterCPP<DirectionalLight>("DirectionalLight", "Graphics");
         ComponentRegistry::RegisterCPP<PointLight>("PointLight", "Graphics"); 
         ComponentRegistry::RegisterCPP<MeshRenderer>("MeshRenderer", "Graphics");
+        ComponentRegistry::RegisterCPP<Animator3d>("Animator3d", "Graphics");
 
         // Gui
         ComponentRegistry::RegisterCPP<RectTransform>("RectTransform", "GUI");

@@ -19,6 +19,7 @@
 #include "graphics/light/DirectionalLight.hpp"
 #include "graphics/light/PointLight.hpp"
 #include "graphics/MeshRenderer.hpp"
+#include "graphics/Animator3d.hpp"
 
 void BindGraphics(py::module_& m) {
     m.def("set_pixel_art_mode", [](bool enable) {
@@ -303,6 +304,28 @@ void BindGraphics(py::module_& m) {
         [](GameObject& go, py::args args) -> py::object {
             auto* mr = go.AddComponent<MeshRenderer>();
             return py::cast(mr, py::return_value_policy::reference);
+        }
+    );
+
+    py::class_<Animator3d, Component>(m, "Animator3d")
+        .def(py::init<>())
+        // Expose core methods
+        .def("load_animations", &Animator3d::LoadAnimationsFromPath, py::arg("path"))
+        .def("play", &Animator3d::Play, py::arg("anim_index") = 0)
+        .def("pause", &Animator3d::Pause)
+        .def("stop", &Animator3d::Stop)
+        // Expose editable properties
+        .def_readwrite("speed", &Animator3d::speed)
+        .def_readwrite("loop", &Animator3d::loop)
+        // Expose read-only state properties
+        .def_readonly("current_anim_index", &Animator3d::currentAnimIndex)
+        .def_readonly("current_frame", &Animator3d::currentFrame)
+        .def_readonly("is_playing", &Animator3d::isPlaying);
+
+    ComponentRegistry::Register<Animator3d>("Animator3d",
+        [](GameObject& go, py::args args) -> py::object {
+            auto* animator = go.AddComponent<Animator3d>();
+            return py::cast(animator, py::return_value_policy::reference);
         }
     );
 }

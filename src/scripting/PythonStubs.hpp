@@ -1520,4 +1520,43 @@ class PointLight(Component):
     def __init__(self) -> None:
         """Initializes a white point light with intensity 1.0 and a default falloff radius of 10.0 units."""
         ...
+
+
+class Animator3d(Component):
+    """Component responsible for loading and playing skeletal 3D animations from model files."""
+    
+    speed: float
+    """Playback speed multiplier (default is 1.0)."""
+    
+    loop: bool
+    """Determines if the animation should restart automatically when it finishes."""
+    
+    current_anim_index: int
+    """Read-only. The index of the currently active animation."""
+    
+    current_frame: int
+    """Read-only. The current frame being rendered."""
+    
+    is_playing: bool
+    """Read-only. True if an animation is currently playing."""
+    
+    def __init__(self) -> None:
+        """Initializes an empty Animator3d component."""
+        ...
+
+    def load_animations(self, path: str) -> None:
+        """Loads all animations embedded within a 3D model file (.glb, .iqm)."""
+        ...
+
+    def play(self, anim_index: int = 0) -> None:
+        """Starts playing the animation at the specified index from the beginning."""
+        ...
+
+    def pause(self) -> None:
+        """Pauses the currently playing animation at its current frame."""
+        ...
+
+    def stop(self) -> None:
+        """Stops the animation and resets the frame counter to 0."""
+        ...
 )";
