@@ -96,11 +96,14 @@ void Editor::Draw(Scene& activeScene, RenderTexture2D& gameTexture, bool& isRunn
         m_gameStatePanel.Draw();
 
         TileMap* activeTileMap = m_selectedObject ? m_selectedObject->GetComponent<TileMap>() : nullptr;
-        m_tilePalettePanel.Draw(m_selectedTileID, m_selectedLayer, activeTileMap);
+        // Pass the new active tool state to the Palette Panel
+        m_tilePalettePanel.Draw(m_selectedTileID, m_selectedLayer, m_currentTileTool, activeTileMap);
 
         m_toolbarPanel.Draw(activeScene, m_selectedObject, sceneBackup, m_currentViewMode);
         
-        m_sceneViewPanel.Draw(m_sceneTexture, *m_editorCamera, activeScene, m_selectedObject, m_selectedTileID, m_selectedLayer, m_currentViewMode);
+        // Pass the new active tool state to the Scene View Panel
+        m_sceneViewPanel.Draw(m_sceneTexture, *m_editorCamera, activeScene, m_selectedObject, m_selectedTileID, m_selectedLayer, m_currentTileTool, m_currentViewMode);
+        
         m_gameViewPanel.Draw(gameTexture, m_currentViewMode);
         m_codeEditorPanel.Draw(m_currentViewMode);
 

@@ -83,6 +83,9 @@ class TileMap : public Component {
         // Sets a tile ID on a specific layer
         void SetTile(int layerIndex, int x, int y, int tileID);
 
+        // Fills an enclosed area of identical tiles with a new tile ID
+        void FloodFill(int layerIndex, int startX, int startY, int newTileID);
+
         // Allows commands to save and restore full layer states
         std::vector<int> GetLayerData(int layerIndex) const;
         void SetLayerData(int layerIndex, const std::vector<int>& data);

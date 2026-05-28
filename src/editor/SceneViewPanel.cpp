@@ -9,7 +9,7 @@
 #include <graphics/TileMap.hpp>
 #include "commands/TileMapPaintCommand.hpp"
 
-void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject, int selectedTileID, int selectedLayer, EditorViewMode& currentViewMode) {    
+void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject, int selectedTileID, int selectedLayer, TileTool currentTileTool, EditorViewMode& currentViewMode) {    
     // Remove inner margins (padding) so the render texture touches the window borders
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::Begin("Scene View");
@@ -166,8 +166,22 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
         ImGui::PopStyleColor();
         ImGui::PopStyleVar();
 
+        // ----------------------------------------------------
+        // GIZMO VISIBILITY LOGIC
+        // ----------------------------------------------------
+        // When editing a TileMap, painting should take priority over the Transform Gizmo.
+        // We hide the Gizmo by default for TileMaps, allowing you to paint anywhere.
+        // Holding 'Left Control' temporarily reveals the Gizmo to let you move the map.
+        bool isEditingTileMap = (selectedObject != nullptr && selectedObject->GetComponent<TileMap>() != nullptr);
+        bool showGizmo = true;
+        
+        if (isEditingTileMap) {
+            // Require Left Ctrl to show the Gizmo when a TileMap is selected
+            showGizmo = ImGui::IsKeyDown(ImGuiKey_LeftCtrl);
+        }
+
         // Gizmos
-        if (selectedObject) {
+        if (selectedObject && showGizmo) {
             auto transform = selectedObject->GetComponent<Transform2d>();
             if (transform) {
                 // Setup ImGuizmo environment
@@ -255,8 +269,11 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
         static TileMap* activePaintMap = nullptr;
         static int activePaintLayer = 0;
 
+        // We only allow ImGuizmo to block scene interactions if it is currently visible
+        bool isGizmoBlocking = showGizmo && ImGuizmo::IsOver();
+
         // Mouse picking logic
-        if (!ImGuizmo::IsOver() && isImageHovered) {
+        if (!isGizmoBlocking && isImageHovered) {
             // Calculate World Position of the mouse (same as before)
             ImVec2 mousePosAbsolute = ImGui::GetMousePos();
             Vector2 mousePosRel = {
@@ -278,16 +295,46 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                     if (transform) {
                         handledAsPaint = true; // Block standard object picking
 
+                        // Define what we are going to paint based on the active tool
+                        int paintID = (currentTileTool == TileTool::Eraser) ? -1 : selectedTileID;
+
                         // The stroke starts, save the initial state
                         if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                             isPainting = true;
                             activePaintMap = tileMap;
                             activePaintLayer = selectedLayer;
-                            initialLayerData = tileMap->GetLayerData(0);
+                            // Make a copy of the active layer for Undo/Redo
+                            initialLayerData = tileMap->GetLayerData(activePaintLayer);
+
+                            // Handle Bucket Tool execution immediately on click
+                            if (currentTileTool == TileTool::Bucket) {
+                                auto position = transform->GetGlobalPosition();
+                                float localX = worldPos.x - position.x;
+                                float localY = worldPos.y - position.y;
+                                float scaledWidth = tileMap->tileSize.x * transform->scale.x;
+                                float scaledHeight = tileMap->tileSize.y * transform->scale.y;
+
+                                if (localX >= 0 && localY >= 0) {
+                                    int gridX = (int)(localX / scaledWidth);
+                                    int gridY = (int)(localY / scaledHeight);
+                                    
+                                    // Execute the flood fill on the active layer
+                                    tileMap->FloodFill(activePaintLayer, gridX, gridY, paintID);
+                                }
+
+                                // The bucket is an instant action, so we finalize the stroke immediately
+                                isPainting = false;
+                                std::vector<int> currentData = activePaintMap->GetLayerData(activePaintLayer);
+                                
+                                if (initialLayerData != currentData) {
+                                    CommandHistory::AddCommand(std::make_unique<TileMapPaintCommand>(activePaintMap, activePaintLayer, initialLayerData, currentData));
+                                }
+                                activePaintMap = nullptr;
+                            }
                         }
                         
-                        // Use IsMouseDown (not IsMouseClicked) to allow click-and-drag painting!
-                        if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                        // Handle Brush and Eraser (Continuous drag)
+                        if (isPainting && currentTileTool != TileTool::Bucket && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
                             
                             // Calculate local position relative to the TileMap's origin
                             auto position = transform->GetGlobalPosition();
@@ -303,9 +350,8 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                                 int gridX = (int)(localX / scaledTileWidth);
                                 int gridY = (int)(localY / scaledTileHeight);
                                 
-                                // Set the tile on Layer 0 (Base Layer). 
-                                // The -1 fallback handles the "eraser" if you clicked outside the palette.
-                                tileMap->SetTile(activePaintLayer, gridX, gridY, selectedTileID);
+                                // Set the tile on the active layer
+                                tileMap->SetTile(activePaintLayer, gridX, gridY, paintID);
                             }
                         }
                     }
@@ -326,7 +372,7 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
             isPainting = false;
             
             if (activePaintMap) {
-                std::vector<int> currentData = activePaintMap->GetLayerData(0);
+                std::vector<int> currentData = activePaintMap->GetLayerData(activePaintLayer);
                 
                 // Only add a command if the user actually modified at least one tile
                 if (initialLayerData != currentData) {

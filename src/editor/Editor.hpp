@@ -58,8 +58,12 @@ class [[gnu::visibility("default")]] Editor {
         EditorViewMode m_currentViewMode = EditorViewMode::Scene;
 
         bool m_showGlobalGrid = true;
+        
+        // TileMap Painting State
         int m_selectedTileID = -1;
         int m_selectedLayer = 0;
+        TileTool m_currentTileTool = TileTool::Brush; // Tracks the active painting tool
+        
         std::filesystem::path m_assetsPath = "assets";
 
         // Editor Specific Rendering

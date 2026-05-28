@@ -3,12 +3,19 @@
 #include <raylib.h>
 #include <string>
 
+// Defines the currently active drawing tool
+enum class TileTool {
+    Brush,
+    Eraser,
+    Bucket
+};
+
 class TilePalettePanel {
     public:
         TilePalettePanel();
 
         // Draws the Tile Palette window
-        void Draw(int& selectedTileID, int& selectedLayer, class TileMap* activeTileMap);
+        void Draw(int& selectedTileID, int& selectedLayer, TileTool& activeTool, class TileMap* activeTileMap);
 
         bool isOpen = true;
 

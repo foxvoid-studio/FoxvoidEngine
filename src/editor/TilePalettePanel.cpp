@@ -10,7 +10,7 @@
 
 TilePalettePanel::TilePalettePanel() : m_zoom(2.0f), m_selectedTilesetIndex(0) {}
 
-void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileMap* activeTileMap) {
+void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileTool& activeTool, TileMap* activeTileMap) {
     if (!isOpen) return;
 
     if (ImGui::Begin("Tile Palette", &isOpen)) {
@@ -34,7 +34,7 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileMap* ac
             for (int i = 0; i < layers.size(); i++) {
                 bool isSelected = (selectedLayer == i);
                 if (ImGui::Selectable(layers[i].name.c_str(), isSelected)) {
-                    selectedLayer = i; // Mettre à jour l'index quand l'utilisateur clique
+                    selectedLayer = i;
                 }
                 if (isSelected) ImGui::SetItemDefaultFocus();
             }
@@ -63,39 +63,41 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileMap* ac
         int tileSpacing = activeTileMap->tileSpacing;
 
         // Controls
-        // Reduce the slider width to make room for the eraser button on the same line
-        ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - 200);
-        ImGui::SliderFloat("Zoom", &m_zoom, 1.0f, 5.0f);
-        ImGui::PopItemWidth();
+        // Helper lambda to draw selectable tool buttons
+        auto drawToolButton = [](const char* icon, const char* tooltip, TileTool toolType, TileTool& currentTool) {
+            bool isSelected = (currentTool == toolType);
+            if (isSelected) {
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.90f, 0.45f, 0.10f, 1.0f)); 
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.00f, 0.55f, 0.20f, 1.0f));
+            }
+            
+            if (ImGui::Button(icon, ImVec2(32, 32))) currentTool = toolType;
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", tooltip);
+            
+            if (isSelected) ImGui::PopStyleColor(2);
+        };
+
+        // Draw tool buttons (Brush, Eraser, Bucket)
+        drawToolButton(ICON_FA_PAINTBRUSH, "Brush (Paint single tiles)", TileTool::Brush, activeTool);
+        ImGui::SameLine();
+        drawToolButton(ICON_FA_ERASER, "Eraser (Remove tiles)", TileTool::Eraser, activeTool);
+        ImGui::SameLine();
+        drawToolButton(ICON_FA_FILL_DRIP, "Bucket (Flood fill area)", TileTool::Bucket, activeTool);
 
         ImGui::SameLine();
-
-        // Eraser Button
-        bool isEraserActive = (selectedTileID == -1);
-
-        if (isEraserActive) {
-            // If the eraser is active, tint the button red to provide clear visual feedback
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f)); 
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.3f, 0.3f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
-        }
-
-        if (ImGui::Button(ICON_FA_ERASER " Eraser")) {
-            selectedTileID = -1; // -1 represents an empty tile (eraser tool)
-        }
-
-        if (isEraserActive) {
-            // Restore the default button colors
-            ImGui::PopStyleColor(3);
-        }
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 10); // Spacing
+        
+        // Reduce the slider width to make room for the tool buttons on the same line
+        ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
+        ImGui::SliderFloat("##Zoom", &m_zoom, 1.0f, 5.0f, "Zoom: %.1fx");
+        ImGui::PopItemWidth();
 
         ImGui::Separator();
 
         // Display the currently selected Tile ID (Global ID)
-        if (selectedTileID == -1) {
-            ImGui::TextDisabled("Tile: None");
-        }
-        else {
+        if (activeTool == TileTool::Eraser) {
+            ImGui::TextDisabled("Tool: Eraser Active");
+        } else {
             ImGui::Text("Tile (Global ID): %d", selectedTileID);
         }
 
@@ -160,6 +162,11 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileMap* ac
                         
                         // Crucial: Add the tileset offset to get the Global ID
                         selectedTileID = activeTileset.firstTileID + localTileID;
+                        
+                        // Automatically switch back to Brush if a tile is picked while the Eraser is active
+                        if (activeTool == TileTool::Eraser) {
+                            activeTool = TileTool::Brush;
+                        }
                     }
                 }
 

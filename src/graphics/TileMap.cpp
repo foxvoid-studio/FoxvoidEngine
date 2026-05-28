@@ -3,6 +3,7 @@
 #include "world/GameObject.hpp"
 #include "graphics/Graphics.hpp"
 #include <iostream>
+#include <queue>
 
 #ifndef STANDALONE_MODE
 #include "editor/EditorUI.hpp"
@@ -280,6 +281,39 @@ void TileMap::SetTile(int layerIndex, int x, int y, int tileID) {
     if (layerIndex < 0 || layerIndex >= m_layers.size() || !IsInBounds(x, y)) return;
     
     m_layers[layerIndex].data[y * gridWidth + x] = tileID;
+}
+
+void TileMap::FloodFill(int layerIndex, int startX, int startY, int newTileID) {
+    if (layerIndex < 0 || layerIndex >= m_layers.size() || !IsInBounds(startX, startY)) return;
+
+    int targetTileID = GetTile(layerIndex, startX, startY);
+    
+    // Safety check: If the target tile is already the one we want to paint, do nothing.
+    // This prevents an infinite loop that would freeze the engine.
+    if (targetTileID == newTileID) return;
+
+    // Use a Breadth-First Search (BFS) with a queue to prevent stack overflow on large maps
+    std::queue<std::pair<int, int>> q;
+    q.push({startX, startY});
+
+    while (!q.empty()) {
+        auto [x, y] = q.front();
+        q.pop();
+
+        // Skip if out of bounds (redundant safety check, but good practice)
+        if (!IsInBounds(x, y)) continue;
+
+        if (GetTile(layerIndex, x, y) == targetTileID) {
+            SetTile(layerIndex, x, y, newTileID);
+
+            // Queue the 4 neighboring tiles (Up, Down, Left, Right)
+            // Diagonals are intentionally ignored for standard bucket fill
+            if (IsInBounds(x + 1, y)) q.push({x + 1, y});
+            if (IsInBounds(x - 1, y)) q.push({x - 1, y});
+            if (IsInBounds(x, y + 1)) q.push({x, y + 1});
+            if (IsInBounds(x, y - 1)) q.push({x, y - 1});
+        }
+    }
 }
 
 void TileMap::ResizeMap(int newWidth, int newHeight) {
