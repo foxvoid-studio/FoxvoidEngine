@@ -8,7 +8,7 @@
 #include <rlgl.h>
 
 // Default initialization for global settings
-float LightingSystem::ambientIntensity = 0.2f;
+float LightingSystem::ambientIntensity = 0.7f;
 bool LightingSystem::castShadows = true;
 
 Shader LightingSystem::s_defaultShader = { 0 };
