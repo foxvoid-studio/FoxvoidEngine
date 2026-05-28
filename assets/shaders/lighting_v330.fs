@@ -1,84 +1,116 @@
 #version 330
 
-// Input vertex attributes (Received from the vertex shader)
+// Inputs from the vertex shader
 in vec3 fragPosition;
 in vec2 fragTexCoord;
 in vec4 fragColor;
 in vec3 fragNormal;
+in vec4 fragLightPos;
 
-// Output fragment color
+// Final pixel output
 out vec4 finalColor;
 
-// Optional: Base texture and color provided by Raylib's material system
+// Textures
 uniform sampler2D texture0;
+uniform sampler2D shadowMap; 
+
+// Material properties and camera position
 uniform vec4 colDiffuse;
-
-// Custom engine uniforms
-// The position of the camera (needed to calculate specular reflections)
 uniform vec3 viewPos; 
+uniform float ambientIntensity;
 
-// Definition of our Light structure
+// Structure representing a dynamic light source
 struct Light {
     int type;           // 0 = Directional, 1 = Point
-    vec3 position;      // Used only for Point lights
-    vec3 direction;     // Used only for Directional lights
-    vec4 color;         // Normalized RGBA color
-    float intensity;    // Brightness multiplier
-    float radius;       // Used only for Point lights (attenuation distance)
+    vec3 position;      
+    vec3 direction;     
+    vec4 color;         
+    float intensity;    
+    float radius;       
 };
 
-// We allow up to 4 lights simultaneously for performance. 
-// You can safely increase this limit later if needed.
 #define MAX_LIGHTS 4
 uniform int lightCount;
 uniform Light lights[MAX_LIGHTS];
 
-void main()
-{
-    // Get the base color of the object (combining texture, vertex color, and material tint)
+// Calculates the shadow factor (0.0 = lit, 1.0 = fully shadowed)
+float ShadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDirection) {
+    // Perform perspective divide to get Normalized Device Coordinates [-1, 1]
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    
+    // Map to [0, 1] for texture sampling
+    projCoords = projCoords * 0.5 + 0.5;
+    
+    // Ignore fragments beyond the light's far plane
+    if(projCoords.z > 1.0) return 0.0;
+
+    // Raylib FBOs are flipped vertically, we invert the Y axis
+    vec2 uv = vec2(projCoords.x, 1.0 - projCoords.y);
+
+    // Apply a slight bias to prevent shadow acne (surface self-shadowing artifacts)
+    float bias = max(0.005 * (1.0 - dot(normal, lightDirection)), 0.001);
+    
+    // Percentage-Closer Filtering (PCF) to soften the shadow edges
+    float shadow = 0.0;
+    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+    
+    for(int x = -1; x <= 1; ++x) {
+        for(int y = -1; y <= 1; ++y) {
+            float pcfDepth = texture(shadowMap, uv + vec2(x, y) * texelSize).r; 
+            shadow += (projCoords.z - bias) > pcfDepth ? 1.0 : 0.0;        
+        }    
+    }
+    shadow /= 9.0; // Average the samples
+    
+    return shadow;
+}
+
+void main() {
     vec4 texelColor = texture(texture0, fragTexCoord);
     vec3 baseColor = (texelColor * fragColor * colDiffuse).rgb;
 
     vec3 normal = normalize(fragNormal);
     vec3 viewDir = normalize(viewPos - fragPosition);
-    
-    // Base ambient light (ensures that areas in complete shadow aren't pitch black)
-    vec3 result = vec3(0.1, 0.1, 0.1) * baseColor;
+    vec3 result = ambientIntensity * baseColor; // Base ambient illumination
 
-    for (int i = 0; i < lightCount; i++) {
+    // Evaluate the global shadow map for the primary directional light
+    float globalShadow = 0.0;
+    if (lightCount > 0 && lights[0].type == 0) {
+        globalShadow = ShadowCalculation(fragLightPos, normal, normalize(-lights[0].direction));
+    }
+
+    // Accumulate the contribution of each dynamic light
+    for (int i = 0; i < MAX_LIGHTS; i++) {
+        if (i >= lightCount) break;
+
         vec3 lightDir;
         float attenuation = 1.0;
+        float shadowMultiplier = 1.0; 
 
         if (lights[i].type == 0) {
-            // Directional Light: The direction is constant for all pixels
+            // Directional Light
             lightDir = normalize(-lights[i].direction);
+            shadowMultiplier = 1.0 - globalShadow; 
         } else {
-            // Point Light: The direction is from the pixel to the light source
+            // Point Light
             lightDir = normalize(lights[i].position - fragPosition);
             float distance = length(lights[i].position - fragPosition);
-            
-            // Simple linear falloff based on the light's radius
             attenuation = clamp(1.0 - (distance / lights[i].radius), 0.0, 1.0);
-            
-            // Square the attenuation for a more realistic (quadratic) light falloff
-            attenuation *= attenuation;
+            attenuation *= attenuation; // Quadratic falloff
         }
 
-        // Diffuse shading (Lambertian reflectance)
-        // Calculates how directly the light hits the surface
+        // Diffuse factor
         float diff = max(dot(normal, lightDir), 0.0);
         vec3 diffuse = diff * lights[i].color.rgb * lights[i].intensity * attenuation;
 
-        // Specular shading (Blinn-Phong reflectance)
-        // Calculates the shiny highlight reflecting into the camera
+        // Specular factor (Blinn-Phong)
         vec3 halfwayDir = normalize(lightDir + viewDir);  
-        float spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0); // 32.0 is the shininess factor
-        vec3 specular = spec * lights[i].color.rgb * lights[i].intensity * attenuation * 0.3; // 0.3 dampens the shine
+        float spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0); 
+        vec3 specular = spec * lights[i].color.rgb * lights[i].intensity * attenuation * 0.3;
 
-        // Add this light's contribution to the total pixel color
-        result += (diffuse + specular) * baseColor;
+        // Add the modulated light contribution
+        result += (diffuse + specular) * shadowMultiplier * baseColor;
     }
 
-    // Set the final pixel color, preserving the original alpha (transparency)
     finalColor = vec4(result, texelColor.a * fragColor.a * colDiffuse.a);
 }

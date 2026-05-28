@@ -221,6 +221,16 @@ void Engine::UpdateResolution(int width, int height) {
 
 void Engine::Render() {
     // --- VIRTUAL SPACE (e.g., 1280x720) ---
+    // Pass 0: Pre-Rendering (Shadow Maps, Reflections, etc.)
+    // Must be outside of any other TextureMode or 3D Mode
+    if (m_activeScene.Has3DCamera()) {
+        // Prepare the Light Camera based on where the player is looking
+        LightingSystem::Update(m_activeScene, m_activeScene.GetMainCamera3D());
+        
+        // Generate the depth texture
+        m_activeScene.RenderShadows();
+    }
+ 
     // Pass 1: Game Rendering (What the player sees)
     BeginTextureMode(m_gameTexture);
         ClearBackground(m_activeScene.GetMainCameraBackgroundColor());

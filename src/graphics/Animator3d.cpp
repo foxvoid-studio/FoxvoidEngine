@@ -397,7 +397,6 @@ void Animator3d::OnInspector() {
     if (m_animCount > 0) {
         ImGui::Text("Total Animations: %d", m_animCount);
         
-        // --- NEW: Dropdown (Combo Box) for Animation Selection ---
         std::string previewName = "Unknown";
         if (m_usesCustomAnims && currentAnimIndex < m_customAnims.size()) {
             previewName = m_customAnims[currentAnimIndex].name;
@@ -435,7 +434,6 @@ void Animator3d::OnInspector() {
             }
             ImGui::EndCombo();
         }
-        // ---------------------------------------------------------
         
         // Custom hierarchy shows time, skeletal shows frames
         if (m_usesCustomAnims) {

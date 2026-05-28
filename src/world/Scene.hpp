@@ -100,23 +100,32 @@ class Scene {
         }
 
         void Render3D() {
-            // Apply the active lighting shader
+            for (auto& go : m_gameObjects) {
+                if (!go->IsActiveInHierarchy()) continue;
+                auto transform = go->GetComponent<Transform3d>();
+                if (transform) {
+                    LightingSystem::SetObjectModelMatrix(transform->GetGlobalMatrix());
+                    go->Render();
+                }
+            }
+        }
 
-            LightingSystem::Begin();
-
+        void RenderShadows() {
+            // Helper lambda to draw geometry
+            auto DrawGeometry = [&]() {
                 for (auto& go : m_gameObjects) {
                     if (!go->IsActiveInHierarchy()) continue;
-
                     auto transform = go->GetComponent<Transform3d>();
                     if (transform) {
-                        // Inject the Matrix into the GPU before drawing
                         LightingSystem::SetObjectModelMatrix(transform->GetGlobalMatrix());
-
                         go->Render();
                     }
                 }
+            };
 
-            LightingSystem::End();
+            LightingSystem::BeginShadowRender();
+            DrawGeometry();
+            LightingSystem::EndShadowRender();
         }
 
         // Triggers the render loop for all GameObjects in the scene based on Z-Index
@@ -664,7 +673,7 @@ class Scene {
                 }
             }
             // Fallback color if no main camera is found in the scene
-            return RAYWHITE; 
+            return DARKGRAY; 
         }
 
         // Searches for a GameObject by its exact name across the entire scene

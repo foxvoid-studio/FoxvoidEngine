@@ -1,42 +1,60 @@
 #pragma once
 
 #include <raylib.h>
+#include <raymath.h>
 
 class Scene;
 
-class LightingSystem {
+class [[gnu::visibility("default")]] LightingSystem {
     public:
-        // Loads the shader based on the target platform (Desktop vs Web/Android)
+        // Global ambient setting
+        static float ambientIntensity;
+        static bool castShadows;
+
+        // Initializes the main lighting shader and the shadow mapping framebuffer
         static void Initialize();
 
-        // Unloads the shader from the GPU
+        // Frees GPU memory for shaders and render textures
         static void Shutdown();
 
-        // Gathers all lights in the scene and sends their data to the shader
+        // Gathers Directional and Point lights in the scene, calculates the shadow camera, and updates GPU uniforms
         static void Update(const Scene& scene, Camera3D camera);
 
-        // Activates the lighting shader for rendering
-        static void Begin();
+        // Starts rendering the scene from the directional light's perspective to build the depth map
+        static void BeginShadowRender();
 
-        // Deactivates the lighting shader
-        static void End();
+        // Ends the shadow render pass and resets the rendering target
+        static void EndShadowRender();
 
-        // Send the object's transform to the shader before drawing it
-        static void SetObjectModelMatrix(Matrix modelMat);
+        // Sends a specific object's transformation matrices to the shader before drawing
+        static void SetObjectModelMatrix(const Matrix& mat);
         
-        // Exposes the raw shader if needed by other systems (e.g., custom materials)
+        // Exposes the raw shader so it can be applied to custom materials
         static Shader GetShader();
+        
+        // Returns the generated depth texture to be bound to materials
+        static Texture2D GetShadowTexture();
+
+        static bool IsShadowPass() { return s_isShadowPass; }
+
+        static Shader GetDefaultShader();
 
     private:
+        static Shader s_defaultShader;
+        static bool s_isShadowPass;
         static Shader s_shader;
-        static int s_viewPosLoc;
-        static int s_lightCountLoc;
+        static RenderTexture2D s_shadowMap;
+        static Camera3D s_lightCamera;
 
-        // Locations for the Model and Normal matrices
+        // Cached uniform locations for standard rendering parameters
+        static int s_viewPosLoc;
+        static int s_ambientLoc;
+        static int s_lightCountLoc;
         static int s_matModelLoc;
         static int s_matNormalLoc;
+        static int s_lightVPLoc; 
         
-        // Cache the uniform locations for optimal performance
+        // Cached uniform locations for the array of dynamic lights
         struct LightLocs {
             int type;
             int position;
@@ -45,5 +63,5 @@ class LightingSystem {
             int intensity;
             int radius;
         };
-        static LightLocs s_lightLocs[4]; // MAX_LIGHTS is 4 in our shader
+        static LightLocs s_lightLocs[4]; // MAX_LIGHTS = 4
 };

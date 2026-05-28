@@ -1,6 +1,6 @@
 #include "CuboidMesh.hpp"
 #include "physics/Transform3d.hpp"
-#include <rlgl.h> // Required to push matrices directly to the GPU
+#include <rlgl.h>
 
 #ifndef STANDALONE_MODE
 #include <imgui.h>
@@ -8,10 +8,22 @@
 #include "editor/commands/ModifyComponentCommand.hpp"
 #include "editor/EditorUI.hpp"
 #endif
+#include "light/LightingSystem.hpp"
+
+static Mesh s_cubeMesh = {0};
+static Material s_cubeMaterial = {0};
+static bool s_cubeInit = false;
 
 CuboidMesh::CuboidMesh() 
     : size{1.0f, 1.0f, 1.0f}, color(WHITE), isVisible(true), drawWireframe(false) 
 {
+    // Generate a normalized 1x1x1 mesh. 
+    // We will scale it dynamically during rendering using the 'size' property.
+    if (!s_cubeInit) {
+        s_cubeMesh = GenMeshCube(1.0f, 1.0f, 1.0f);
+        s_cubeMaterial = LoadMaterialDefault();
+        s_cubeInit = true;
+    }
 }
 
 void CuboidMesh::Render() {
@@ -20,42 +32,52 @@ void CuboidMesh::Render() {
     auto transform = owner->GetComponent<Transform3d>();
     if (!transform) return;
 
-    // Extract the global transformation matrix
-    Matrix mat = transform->GetGlobalMatrix();
-
-    // Raylib's rlMultMatrixf expects a flat float array (16 elements)
-    // We safely unpack the matrix here to match the OpenGL memory layout
-    float fmat[16] = {
-        mat.m0, mat.m1, mat.m2, mat.m3,
-        mat.m4, mat.m5, mat.m6, mat.m7,
-        mat.m8, mat.m9, mat.m10, mat.m11,
-        mat.m12, mat.m13, mat.m14, mat.m15
-    };
-
-    // Push the current matrix state to the OpenGL stack
-    rlPushMatrix();
+    // 1. Calculate the final matrix (Scale the 1x1x1 mesh by our 'size' property)
+    Matrix scaleMat = MatrixScale(size.x, size.y, size.z);
     
-    // Apply our Transform3d matrix directly to the GPU rendering context
-    rlMultMatrixf(fmat);
+    // Multiply local size scale with the global transform matrix
+    Matrix finalMat = MatrixMultiply(scaleMat, transform->GetGlobalMatrix());
 
-    // Because the translation, rotation, and scale are ALREADY applied by the matrix above,
-    // we simply draw the cube at the local origin (0, 0, 0).
-    DrawCube(Vector3{0.0f, 0.0f, 0.0f}, size.x, size.y, size.z, color);
+    if (LightingSystem::IsShadowPass()) {
+        s_cubeMaterial.shader = LightingSystem::GetDefaultShader();
+        s_cubeMaterial.maps[MATERIAL_MAP_EMISSION].texture = { 0 };
+    } else {
+        Shader lightShader = LightingSystem::GetShader();
+        if (lightShader.id != 0) {
+            s_cubeMaterial.shader = lightShader;
+            s_cubeMaterial.maps[MATERIAL_MAP_EMISSION].texture = LightingSystem::GetShadowTexture();
+        }
+    }
 
-    // Optional wireframe for debugging or PS1 aesthetic
+    // 4. Send the transformation matrix to the shader and draw the mesh!
+    s_cubeMaterial.maps[MATERIAL_MAP_DIFFUSE].color = color;
+    LightingSystem::SetObjectModelMatrix(finalMat);
+    DrawMesh(s_cubeMesh, s_cubeMaterial, finalMat);
+
+    // 5. Optional wireframe for debugging (Does not require lighting)
     if (drawWireframe) {
-        // Draw slightly darker lines around the edges
+        float fmat[16] = {
+            finalMat.m0, finalMat.m1, finalMat.m2, finalMat.m3,
+            finalMat.m4, finalMat.m5, finalMat.m6, finalMat.m7,
+            finalMat.m8, finalMat.m9, finalMat.m10, finalMat.m11,
+            finalMat.m12, finalMat.m13, finalMat.m14, finalMat.m15
+        };
+
+        rlPushMatrix();
+        rlMultMatrixf(fmat);
+        
         Color wireColor = { 
             (unsigned char)(color.r * 0.5f), 
             (unsigned char)(color.g * 0.5f), 
             (unsigned char)(color.b * 0.5f), 
             255 
         };
-        DrawCubeWires(Vector3{0.0f, 0.0f, 0.0f}, size.x, size.y, size.z, wireColor);
+        
+        // Because finalMat already contains the scaling factor, we draw a 1x1x1 wire cube.
+        DrawCubeWires(Vector3{0.0f, 0.0f, 0.0f}, 1.0f, 1.0f, 1.0f, wireColor);
+        
+        rlPopMatrix();
     }
-
-    // Pop the matrix to avoid affecting other objects drawn after this one
-    rlPopMatrix();
 }
 
 std::string CuboidMesh::GetName() const {

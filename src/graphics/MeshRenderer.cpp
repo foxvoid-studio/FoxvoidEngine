@@ -193,6 +193,8 @@ void MeshRenderer::LoadModelFromUUID(UUID uuid) {
                 if (lightShader.id != 0) {
                     for (int i = 0; i < model.materialCount; i++) {
                         model.materials[i].shader = lightShader;
+                    
+                        model.materials[i].maps[MATERIAL_MAP_EMISSION].texture = LightingSystem::GetShadowTexture();
                     }
                 }
 
@@ -228,8 +230,23 @@ void MeshRenderer::Render() {
         RenderNodeRecursive(rootNode, entityGlobalMat);
     } 
     else {
+        // STANDARD RENDER: Draw the whole model at once (Static props)
+        
+        // Dynamically assign or remove the custom shader
+        bool isShadowPass = LightingSystem::IsShadowPass();
+        Shader currentShader = isShadowPass ? LightingSystem::GetDefaultShader() : LightingSystem::GetShader();
+        Texture2D currentShadowMap = isShadowPass ? Texture2D{0} : LightingSystem::GetShadowTexture();
+
+        for (int i = 0; i < model.materialCount; i++) {
+            model.materials[i].shader = currentShader;
+            model.materials[i].maps[MATERIAL_MAP_EMISSION].texture = currentShadowMap;
+        }
+
         model.transform = entityGlobalMat;
-        DrawModel(model, Vector3Zero(), 1.0f, tint);
+        
+        // Use WHITE tint for shadow passes to avoid depth map corruption, use user tint for normal pass
+        Color renderTint = isShadowPass ? WHITE : tint;
+        DrawModel(model, Vector3Zero(), 1.0f, renderTint);
     }
 }
 
@@ -252,7 +269,7 @@ void MeshRenderer::RenderNodeRecursive(ModelNode& node, const Matrix& parentGlob
 
     if (!node.meshIndices.empty()) {
         
-        // CRITICAL FIX : Inverse must be the left operand to unbake the raylib transform
+        // Inverse must be the left operand to unbake the raylib transform
         Matrix unbakedMatrix = MatrixMultiply(node.inverseBindMatrix, node.globalMatrix);
         
         LightingSystem::SetObjectModelMatrix(unbakedMatrix);
@@ -261,7 +278,13 @@ void MeshRenderer::RenderNodeRecursive(ModelNode& node, const Matrix& parentGlob
             if (mIdx >= 0 && mIdx < model.meshCount) {
                 Mesh mesh = model.meshes[mIdx];
                 int matIndex = model.meshMaterial[mIdx];
+                
                 Material material = model.materials[matIndex];
+
+                if (LightingSystem::IsShadowPass()) {
+                    material.shader = LightingSystem::GetDefaultShader();
+                    material.maps[MATERIAL_MAP_EMISSION].texture = { 0 };
+                }
 
                 DrawMesh(mesh, material, unbakedMatrix);
             }
