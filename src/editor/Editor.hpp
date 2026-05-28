@@ -62,6 +62,8 @@ class [[gnu::visibility("default")]] Editor {
 
         int m_selectedTileID = -1;
         int m_selectedLayer = 0;
+        TileTool m_currentTileTool = TileTool::Brush; // Tracks the active painting tool
+        
         std::filesystem::path m_assetsPath = "assets";
 
         // Editor Specific Rendering

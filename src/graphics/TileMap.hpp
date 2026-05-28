@@ -59,6 +59,9 @@ class TileMap : public Component {
 
         // TileMap Operations
 
+        // Fills an enclosed area of identical tiles with a new tile ID
+        void FloodFill(int layerIndex, int startX, int startY, int newTileID);
+
         // Appends a new tileset to the map and calculates its ID range
         void AddTileset(UUID uuid);
 
