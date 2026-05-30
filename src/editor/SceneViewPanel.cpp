@@ -274,6 +274,10 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
         static int rectStartX = 0, rectStartY = 0;
         static int rectCurrentX = 0, rectCurrentY = 0;
 
+        static bool isCapturingStamp = false;
+        static std::vector<int> stampBuffer;
+        static int stampWidth = 0, stampHeight = 0;
+
         // We only allow ImGuizmo to block scene interactions if it is currently visible
         bool isGizmoBlocking = showGizmo && ImGuizmo::IsOver();
 
@@ -318,33 +322,64 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                             gridY = (int)(localY / scaledHeight);
                         }
 
-                        // The stroke starts, save the initial state
-                        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                        // ----------------------------------------------------
+                        // RIGHT-CLICK: GLOBAL STAMP CAPTURE
+                        // ----------------------------------------------------
+                        if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+                            if (gridX >= 0 && gridY >= 0) {
+                                isCapturingStamp = true;
+                                rectStartX = gridX;
+                                rectStartY = gridY;
+                                rectCurrentX = gridX;
+                                rectCurrentY = gridY;
+                            }
+                        }
+
+                        if (isCapturingStamp && ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+                            rectCurrentX = std::max(0, gridX);
+                            rectCurrentY = std::max(0, gridY);
+                        }
+
+                        if (isCapturingStamp && ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
+                            isCapturingStamp = false;
+                            
+                            int minX = std::max(0, std::min(rectStartX, rectCurrentX));
+                            int maxX = std::min(tileMap->gridWidth - 1, std::max(rectStartX, rectCurrentX));
+                            int minY = std::max(0, std::min(rectStartY, rectCurrentY));
+                            int maxY = std::min(tileMap->gridHeight - 1, std::max(rectStartY, rectCurrentY));
+
+                            stampWidth = (maxX - minX) + 1;
+                            stampHeight = (maxY - minY) + 1;
+                            
+                            if (stampWidth > 0 && stampHeight > 0) {
+                                stampBuffer.resize(stampWidth * stampHeight);
+                                for (int y = 0; y < stampHeight; ++y) {
+                                    for (int x = 0; x < stampWidth; ++x) {
+                                        stampBuffer[y * stampWidth + x] = tileMap->GetTile(selectedLayer, minX + x, minY + y);
+                                    }
+                                }
+                                // Auto-switch to Stamp tool upon successful capture
+                                currentTileTool = TileTool::Stamp;
+                            }
+                        }
+
+                        // ----------------------------------------------------
+                        // LEFT-CLICK: PAINTING ACTIONS
+                        // ----------------------------------------------------
+                        if (!isCapturingStamp && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                             isPainting = true;
                             activePaintMap = tileMap;
                             activePaintLayer = selectedLayer;
 
-                            // ----------------------------------------------------
-                            // EYEDROPPER TOOL LOGIC
-                            // ----------------------------------------------------
                             if (currentTileTool == TileTool::Eyedropper) {
                                 if (gridX >= 0 && gridY >= 0) {
                                     int pickedID = tileMap->GetTile(activePaintLayer, gridX, gridY);
-                                    
-                                    // If we click on a tile, we select it. If we click on an empty space, we select the Eraser (-1)
                                     selectedTileID = pickedID; 
-                                    
-                                    // Auto-switch to Brush (or Eraser if the cell was empty)
                                     currentTileTool = (selectedTileID == -1) ? TileTool::Eraser : TileTool::Brush;
                                 }
-
-                                // Cancel the painting stroke since the Eyedropper is just a read action
                                 isPainting = false;
                                 activePaintMap = nullptr;
                             } 
-                            // ----------------------------------------------------
-                            // RECTANGLE TOOL INIT
-                            // ----------------------------------------------------
                             else if (currentTileTool == TileTool::Rectangle) {
                                 initialLayerData = tileMap->GetLayerData(activePaintLayer);
                                 rectStartX = gridX;
@@ -352,22 +387,18 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                                 rectCurrentX = gridX;
                                 rectCurrentY = gridY;
                             }
+                            else if (currentTileTool == TileTool::Stamp) {
+                                initialLayerData = tileMap->GetLayerData(activePaintLayer);
+                            }
                             else {
-                                // ONLY make a copy for Undo/Redo if we are actually painting or bucketing
                                 initialLayerData = tileMap->GetLayerData(activePaintLayer);
 
-                                // ----------------------------------------------------
-                                // BUCKET TOOL LOGIC
-                                // ----------------------------------------------------
                                 if (currentTileTool == TileTool::Bucket) {
                                     if (gridX >= 0 && gridY >= 0) {
                                         tileMap->FloodFill(activePaintLayer, gridX, gridY, paintID);
                                     }
-
-                                    // The bucket is an instant action, so we finalize the stroke immediately
                                     isPainting = false;
                                     std::vector<int> currentData = activePaintMap->GetLayerData(activePaintLayer);
-                                    
                                     if (initialLayerData != currentData) {
                                         CommandHistory::AddCommand(std::make_unique<TileMapPaintCommand>(activePaintMap, activePaintLayer, initialLayerData, currentData));
                                     }
@@ -376,17 +407,26 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                             }
                         }
                         
-                        // ----------------------------------------------------
-                        // CONTINUOUS DRAG LOGIC (Brush, Eraser, Rectangle Preview)
-                        // ----------------------------------------------------
+                        // Continuous drag logic
                         if (isPainting && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
                             if (currentTileTool == TileTool::Rectangle) {
-                                // Update current rectangle corner for preview drawing
                                 rectCurrentX = gridX;
                                 rectCurrentY = gridY;
                             }
+                            else if (currentTileTool == TileTool::Stamp) {
+                                if (!stampBuffer.empty() && gridX >= 0 && gridY >= 0) {
+                                    for (int y = 0; y < stampHeight; ++y) {
+                                        for (int x = 0; x < stampWidth; ++x) {
+                                            int targetX = gridX + x;
+                                            int targetY = gridY + y;
+                                            if (targetX < tileMap->gridWidth && targetY < tileMap->gridHeight) {
+                                                tileMap->SetTile(activePaintLayer, targetX, targetY, stampBuffer[y * stampWidth + x]);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             else if (currentTileTool != TileTool::Bucket && currentTileTool != TileTool::Eyedropper) {
-                                // Prevent negative index wrapping if mouse is above/left of the map
                                 if (gridX >= 0 && gridY >= 0) {
                                     tileMap->SetTile(activePaintLayer, gridX, gridY, paintID);
                                 }
@@ -394,33 +434,38 @@ void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, S
                         }
 
                         // ----------------------------------------------------
-                        // RECTANGLE TOOL PREVIEW DRAWING
+                        // TOOL VISUAL PREVIEWS
                         // ----------------------------------------------------
-                        if (isPainting && currentTileTool == TileTool::Rectangle && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                        auto DrawWorldRect = [&](int x1, int y1, int x2, int y2, ImU32 fill, ImU32 outline) {
+                            Vector2 tlWorld = { position.x + x1 * scaledWidth, position.y + y1 * scaledHeight };
+                            Vector2 brWorld = { position.x + (x2 + 1) * scaledWidth, position.y + (y2 + 1) * scaledHeight };
+                            Vector2 tlTex = GetWorldToScreen2D(tlWorld, camera.GetCamera());
+                            Vector2 brTex = GetWorldToScreen2D(brWorld, camera.GetCamera());
+                            ImVec2 p_min = ImVec2(imagePosAbsolute.x + (tlTex.x / texWidth) * drawSize.x, imagePosAbsolute.y + (tlTex.y / texHeight) * drawSize.y);
+                            ImVec2 p_max = ImVec2(imagePosAbsolute.x + (brTex.x / texWidth) * drawSize.x, imagePosAbsolute.y + (brTex.y / texHeight) * drawSize.y);
+                            ImGui::GetWindowDrawList()->AddRectFilled(p_min, p_max, fill); 
+                            ImGui::GetWindowDrawList()->AddRect(p_min, p_max, outline, 0.0f, 0, 2.0f);
+                        };
+
+                        // Stamp Capture Preview (Blue)
+                        if (isCapturingStamp && ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
                             int minX = std::max(0, std::min(rectStartX, rectCurrentX));
                             int maxX = std::min(tileMap->gridWidth - 1, std::max(rectStartX, rectCurrentX));
                             int minY = std::max(0, std::min(rectStartY, rectCurrentY));
                             int maxY = std::min(tileMap->gridHeight - 1, std::max(rectStartY, rectCurrentY));
-
-                            // Calculate Screen coordinates for the preview rectangle
-                            Vector2 topLeftWorld = { position.x + minX * scaledWidth, position.y + minY * scaledHeight };
-                            Vector2 bottomRightWorld = { position.x + (maxX + 1) * scaledWidth, position.y + (maxY + 1) * scaledHeight };
-
-                            Vector2 topLeftTex = GetWorldToScreen2D(topLeftWorld, camera.GetCamera());
-                            Vector2 bottomRightTex = GetWorldToScreen2D(bottomRightWorld, camera.GetCamera());
-
-                            ImVec2 p_min = ImVec2(
-                                imagePosAbsolute.x + (topLeftTex.x / texWidth) * drawSize.x,
-                                imagePosAbsolute.y + (topLeftTex.y / texHeight) * drawSize.y
-                            );
-                            ImVec2 p_max = ImVec2(
-                                imagePosAbsolute.x + (bottomRightTex.x / texWidth) * drawSize.x,
-                                imagePosAbsolute.y + (bottomRightTex.y / texHeight) * drawSize.y
-                            );
-
-                            // Draw a semi-transparent orange rectangle to preview the fill area
-                            ImGui::GetWindowDrawList()->AddRectFilled(p_min, p_max, IM_COL32(230, 115, 25, 80)); 
-                            ImGui::GetWindowDrawList()->AddRect(p_min, p_max, IM_COL32(230, 115, 25, 255), 0.0f, 0, 2.0f); 
+                            DrawWorldRect(minX, minY, maxX, maxY, IM_COL32(50, 150, 255, 80), IM_COL32(50, 150, 255, 255));
+                        }
+                        // Stamp Paste Preview (Yellow)
+                        else if (!isCapturingStamp && !isPainting && currentTileTool == TileTool::Stamp && !stampBuffer.empty() && gridX >= 0 && gridY >= 0) {
+                            DrawWorldRect(gridX, gridY, gridX + stampWidth - 1, gridY + stampHeight - 1, IM_COL32(230, 200, 50, 80), IM_COL32(230, 200, 50, 255));
+                        }
+                        // Rectangle Shape Preview (Orange)
+                        else if (isPainting && currentTileTool == TileTool::Rectangle && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                            int minX = std::max(0, std::min(rectStartX, rectCurrentX));
+                            int maxX = std::min(tileMap->gridWidth - 1, std::max(rectStartX, rectCurrentX));
+                            int minY = std::max(0, std::min(rectStartY, rectCurrentY));
+                            int maxY = std::min(tileMap->gridHeight - 1, std::max(rectStartY, rectCurrentY));
+                            DrawWorldRect(minX, minY, maxX, maxY, IM_COL32(230, 115, 25, 80), IM_COL32(230, 115, 25, 255));
                         }
                     }
                 }

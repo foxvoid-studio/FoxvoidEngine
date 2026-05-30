@@ -92,7 +92,7 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileTool& a
             if (isSelected) ImGui::PopStyleColor(2);
         };
 
-        // Draw tool buttons (Brush, Eraser, Bucket, Eyedropper, Rectangle)
+        // Draw tool buttons
         drawToolButton(ICON_FA_PAINTBRUSH, "Brush (Paint single tiles)", TileTool::Brush, activeTool);
         ImGui::SameLine();
         drawToolButton(ICON_FA_ERASER, "Eraser (Remove tiles)", TileTool::Eraser, activeTool);
@@ -102,6 +102,8 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileTool& a
         drawToolButton(ICON_FA_EYE_DROPPER, "Eyedropper (Pick tile from scene)", TileTool::Eyedropper, activeTool);
         ImGui::SameLine();
         drawToolButton(ICON_FA_SQUARE, "Rectangle (Draw a filled box of tiles)", TileTool::Rectangle, activeTool);
+        ImGui::SameLine();
+        drawToolButton(ICON_FA_STAMP, "Stamp (Paste copied region. Right-Click in scene to copy)", TileTool::Stamp, activeTool);
 
         ImGui::SameLine();
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 10); // Spacing
@@ -113,11 +115,13 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileTool& a
 
         ImGui::Separator();
 
-        // Display the currently selected Tile ID (Global ID)
+        // Display the currently selected Tile ID (Global ID) or Tool Hint
         if (activeTool == TileTool::Eraser) {
             ImGui::TextDisabled("Tool: Eraser Active");
         } else if (activeTool == TileTool::Eyedropper) {
             ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "Pick a tile in the Scene...");
+        } else if (activeTool == TileTool::Stamp) {
+            ImGui::TextColored(ImVec4(0.9f, 0.7f, 0.2f, 1.0f), "Right-Click drag in Scene to copy a region.");
         } else {
             ImGui::Text("Tile (Global ID): %d", selectedTileID);
         }
@@ -184,8 +188,8 @@ void TilePalettePanel::Draw(int& selectedTileID, int& selectedLayer, TileTool& a
                         // Crucial: Add the tileset offset to get the Global ID
                         selectedTileID = activeTileset.firstTileID + localTileID;
                         
-                        // Automatically switch back to Brush if a tile is picked while the Eraser or Eyedropper is active
-                        if (activeTool == TileTool::Eraser || activeTool == TileTool::Eyedropper) {
+                        // Automatically switch back to Brush if a tile is picked while Eraser/Eyedropper/Stamp is active
+                        if (activeTool == TileTool::Eraser || activeTool == TileTool::Eyedropper || activeTool == TileTool::Stamp) {
                             activeTool = TileTool::Brush;
                         }
                     }
