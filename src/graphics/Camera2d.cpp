@@ -1,9 +1,9 @@
 #include "Camera2d.hpp"
-#include "physics/Transform2d.hpp"
-#include "world/GameObject.hpp"
+#include "math/Transform2d.hpp"
+#include "scene/GameObject.hpp"
 #include <raymath.h>
 #include "core/Engine.hpp"
-#include "world/Scene.hpp"
+#include "scene/Scene.hpp"
 #include "graphics/TileMap.hpp"
 
 #ifndef STANDALONE_MODE

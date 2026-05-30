@@ -1,6 +1,6 @@
 #include "SpriteSheetRenderer.hpp"
-#include "../world/GameObject.hpp"
-#include "../physics/Transform2d.hpp"
+#include "scene/GameObject.hpp"
+#include "math/Transform2d.hpp"
 #include "Graphics.hpp"
 #include <iostream>
 #include <cstring>

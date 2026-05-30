@@ -1,6 +1,6 @@
 #pragma once
 
-#include "world/Component.hpp"
+#include "scene/Component.hpp"
 #include <raylib.h>
 #include <nlohmann/json.hpp>
 

@@ -1,7 +1,7 @@
 #include "SpriteRenderer.hpp"
 #include "Graphics.hpp"
-#include "../world/GameObject.hpp"
-#include "../physics/Transform2d.hpp"
+#include "scene/GameObject.hpp"
+#include "math/Transform2d.hpp"
 #include <iostream>
 #include <core/AssetManager.hpp>
 #include <core/AssetRegistry.hpp>

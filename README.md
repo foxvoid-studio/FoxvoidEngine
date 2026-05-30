@@ -88,10 +88,10 @@ src/
 ├── core/       # Engine loop, AssetManager, InputManager, GameState
 ├── editor/     # ImGui Panels (Hierarchy, Inspector, TilePalette) & Command History
 ├── graphics/   # Sprite, Camera, TileMap, and Animator2d implementations
-├── gui/        # Screen-space HUD elements (Buttons, TextRenderer)
+├── ui/        # Screen-space HUD elements (Buttons, TextRenderer)
 ├── physics/    # Custom AABB engine, Colliders, Raycasting, and Transform math
 ├── scripting/  # Pybind11 C++ to Python bindings and ScriptEngine
-└── world/      # ECS base (Scene, GameObject, ComponentRegistry)
+└── scene/      # ECS base (Scene, GameObject, ComponentRegistry)
 ```
 
 ## Getting Started

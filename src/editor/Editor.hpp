@@ -6,27 +6,27 @@
 #include <raylib.h>
 #include <pybind11/pybind11.h>
 
-#include "world/Scene.hpp"
-#include "world/GameObject.hpp"
+#include "scene/Scene.hpp"
+#include "scene/GameObject.hpp"
 
 #include "editor/EditorViewMode.hpp"
 
 // Editor Panels
 #include "editor/EditorConsole.hpp"
-#include "editor/HierarchyPanel.hpp"
-#include "editor/InspectorPanel.hpp"
-#include "editor/ProjectPanel.hpp"
-#include "editor/SceneViewPanel.hpp"
-#include "editor/GameViewPanel.hpp"
-#include "editor/ToolbarPanel.hpp"
 #include "editor/MainMenuBar.hpp"
-#include "editor/InputSettingsPanel.hpp"
-#include "editor/TilePalettePanel.hpp"
-#include "editor/GameStatePanel.hpp"
-#include "editor/ProjectHubPanel.hpp"
-#include "editor/PerformancePanel.hpp"
-#include "editor/CodeEditorPanel.hpp"
-#include "editor/PrefabEditorPanel.hpp"
+#include "editor/panels/HierarchyPanel.hpp"
+#include "editor/panels/InspectorPanel.hpp"
+#include "editor/panels/ProjectPanel.hpp"
+#include "editor/panels/SceneViewPanel.hpp"
+#include "editor/panels/GameViewPanel.hpp"
+#include "editor/panels/ToolbarPanel.hpp"
+#include "editor/panels/InputSettingsPanel.hpp"
+#include "editor/panels/TilePalettePanel.hpp"
+#include "editor/panels/GameStatePanel.hpp"
+#include "editor/panels/ProjectHubPanel.hpp"
+#include "editor/panels/PerformancePanel.hpp"
+#include "editor/panels/CodeEditorPanel.hpp"
+#include "editor/panels/PrefabEditorPanel.hpp"
 
 class [[gnu::visibility("default")]] Editor {
     public:

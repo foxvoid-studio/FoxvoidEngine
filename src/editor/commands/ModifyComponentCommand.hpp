@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ICommand.hpp"
-#include "world/Component.hpp"
+#include "scene/Component.hpp"
 
 class ModifyComponentCommand : public ICommand {
     public:

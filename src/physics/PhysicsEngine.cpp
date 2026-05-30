@@ -1,15 +1,15 @@
 #include "PhysicsEngine.hpp"
-#include "physics/Transform2d.hpp"
+#include "math/Transform2d.hpp"
 #include "physics/RigidBody2d.hpp"
-#include "physics/RectCollider.hpp"
+#include "physics/colliders/RectCollider.hpp"
 #include "graphics/TileMap.hpp"
-#include "world/Scene.hpp"
+#include "scene/Scene.hpp"
 #include <raymath.h>
 #include <cmath>
 #include <limits>
-#include "PolygonCollider.hpp"
-#include "CircleCollider.hpp"
-#include "CapsuleCollider.hpp"
+#include "physics/colliders/PolygonCollider.hpp"
+#include "physics/colliders/CircleCollider.hpp"
+#include "physics/colliders/CapsuleCollider.hpp"
 #include "physics/SpatialHashGrid.hpp"
 
 // Initialize global gravity (981 pixels/sec² pointing down)

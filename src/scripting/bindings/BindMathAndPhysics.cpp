@@ -3,17 +3,17 @@
 #include <raymath.h>
 #include <iostream>
 #include <pybind11/stl.h>
-#include "world/GameObject.hpp"
-#include "physics/Transform2d.hpp"
-#include <world/ComponentRegistry.hpp>
-#include "physics/RectCollider.hpp"
-#include "physics/PolygonCollider.hpp"
+#include "scene/GameObject.hpp"
+#include "math/Transform2d.hpp"
+#include <scene/ComponentRegistry.hpp>
+#include "physics/colliders/RectCollider.hpp"
+#include "physics/colliders/PolygonCollider.hpp"
 #include "physics/RigidBody2d.hpp"
-#include "physics/Collision2D.hpp"
+#include "physics/colliders/Collision2D.hpp"
 #include <physics/PhysicsEngine.hpp>
 #include <core/Engine.hpp>
-#include <physics/CircleCollider.hpp>
-#include <physics/CapsuleCollider.hpp>
+#include <physics/colliders/CircleCollider.hpp>
+#include <physics/colliders/CapsuleCollider.hpp>
 
 void BindMathAndPhysics(py::module_& m) {
     py::class_<Vector2>(m, "Vector2")

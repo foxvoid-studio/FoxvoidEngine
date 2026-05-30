@@ -201,11 +201,12 @@ FetchContent_MakeAvailable(pybind11)
 file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS 
     "src/audio/*.cpp"
     "src/core/*.cpp"
+    "src/input/*.cpp"
     "src/graphics/*.cpp"
-    "src/gui/*.cpp"
+    "src/ui/*.cpp"
     "src/physics/*.cpp"
     "src/scripting/*.cpp"
-    "src/world/*.cpp"
+    "src/scene/*.cpp"
     "src/main.cpp"
 )
 

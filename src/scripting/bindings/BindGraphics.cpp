@@ -1,14 +1,14 @@
 #include "../ScriptBindings.hpp"
 #include <pybind11/stl.h>
 #include <iostream>
-#include "../../world/GameObject.hpp"
+#include "../../scene/GameObject.hpp"
 #include "../../graphics/Graphics.hpp"
 #include "../../graphics/SpriteRenderer.hpp"
 #include "../../graphics/SpriteSheetRenderer.hpp"
 #include "../../graphics/Animation2d.hpp"
 #include "../../graphics/Animator2d.hpp"
 #include "graphics/Camera2d.hpp"
-#include <world/ComponentRegistry.hpp>
+#include <scene/ComponentRegistry.hpp>
 #include "graphics/TileMap.hpp"
 #include "graphics/ShapeRenderer.hpp"
 #include "graphics/ParticleSystem2d.hpp"

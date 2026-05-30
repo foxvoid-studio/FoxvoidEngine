@@ -2,8 +2,8 @@
 
 #include <memory>
 #include "ICommand.hpp"
-#include "world/Scene.hpp"
-#include "world/GameObject.hpp"
+#include "scene/Scene.hpp"
+#include "scene/GameObject.hpp"
 
 class DeleteObjectCommand : public ICommand {
     public:

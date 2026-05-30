@@ -4,7 +4,7 @@
 #include <filesystem>
 #include <memory>
 #include <raylib.h>
-#include "world/Scene.hpp"
+#include "scene/Scene.hpp"
 
 #ifndef STANDALONE_MODE
 class Editor;

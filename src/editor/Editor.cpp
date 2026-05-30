@@ -5,7 +5,7 @@
 #include <iostream>
 #include <core/ProjectSettings.hpp>
 #include <scripting/ScriptEngine.hpp>
-#include <core/InputManager.hpp>
+#include <input/InputManager.hpp>
 #include <core/GameStateManager.hpp>
 #include "core/Engine.hpp"
 

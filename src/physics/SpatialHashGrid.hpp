@@ -5,7 +5,7 @@
 #include <vector>
 #include <utility>
 #include <unordered_set>
-#include "world/GameObject.hpp"
+#include "scene/GameObject.hpp"
 #include "physics/PhysicsEngine.hpp"
 
 // Custom Hasher so std::unordered_map can use a std::pair<int, int> as a Key

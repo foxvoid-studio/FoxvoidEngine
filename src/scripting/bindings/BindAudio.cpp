@@ -1,6 +1,6 @@
 #include "scripting/ScriptBindings.hpp"
-#include "world/Component.hpp"
-#include "world/ComponentRegistry.hpp"
+#include "scene/Component.hpp"
+#include "scene/ComponentRegistry.hpp"
 #include "audio/AudioSource.hpp"
 
 void BindAudio(py::module_& m) {

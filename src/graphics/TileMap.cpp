@@ -1,6 +1,6 @@
 #include "TileMap.hpp"
-#include "physics/Transform2d.hpp"
-#include "world/GameObject.hpp"
+#include "math/Transform2d.hpp"
+#include "scene/GameObject.hpp"
 #include "graphics/Graphics.hpp"
 #include <iostream>
 #include <queue>

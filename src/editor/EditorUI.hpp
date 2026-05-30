@@ -4,7 +4,7 @@
 #include <imgui.h>
 #endif
 #include <raylib.h>
-#include "world/Component.hpp"
+#include "scene/Component.hpp"
 
 class EditorUI {
     public:

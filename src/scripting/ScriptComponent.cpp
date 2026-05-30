@@ -8,7 +8,7 @@
 #include <algorithm>
 
 #include "core/AssetRegistry.hpp"
-#include "world/GameObject.hpp"
+#include "scene/GameObject.hpp"
 
 #ifndef STANDALONE_MODE
 #include "editor/EditorUI.hpp"

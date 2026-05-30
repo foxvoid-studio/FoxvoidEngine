@@ -2,7 +2,7 @@
 
 #include <string>
 #include "ICommand.hpp"
-#include "world/GameObject.hpp"
+#include "scene/GameObject.hpp"
 
 class ChangeNameCommand : public ICommand {
     public:

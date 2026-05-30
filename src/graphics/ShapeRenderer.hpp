@@ -1,9 +1,9 @@
 #pragma once
 
-#include "world/Component.hpp"
-#include "world/GameObject.hpp"
-#include "physics/Transform2d.hpp"
-#include "gui/RectTransform.hpp"
+#include "scene/Component.hpp"
+#include "scene/GameObject.hpp"
+#include "math/Transform2d.hpp"
+#include "ui/RectTransform.hpp"
 #include <raylib.h>
 #include <rlgl.h>
 

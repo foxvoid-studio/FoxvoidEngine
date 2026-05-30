@@ -1,9 +1,9 @@
 #pragma once
 
-#include "world/GameObject.hpp"
+#include "scene/GameObject.hpp"
 #include <raylib.h>
-#include "Collision2D.hpp"
-#include "ColliderData.hpp"
+#include "physics/colliders/Collision2D.hpp"
+#include "physics/colliders/ColliderData.hpp"
 
 class Scene;
 class RectCollider;

@@ -5,9 +5,9 @@
 #include <atomic>
 #include <mutex>
 #include <filesystem>
-#include "../world/Scene.hpp"
-#include "InputSettingsPanel.hpp"
-#include "GameStatePanel.hpp"
+#include "scene/Scene.hpp"
+#include "editor/panels/InputSettingsPanel.hpp"
+#include "editor/panels/GameStatePanel.hpp"
 
 class MainMenuBar {
     public:

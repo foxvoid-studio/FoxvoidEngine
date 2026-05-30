@@ -8,7 +8,7 @@
 #include <raylib.h>
 
 #ifdef STANDALONE_MODE
-#include "core/InputManager.hpp"
+#include "input/InputManager.hpp"
 #include "core/GameStateManager.hpp"
 #include "core/AssetRegistry.hpp"
 #include "scripting/ScriptEngine.hpp"

@@ -1,6 +1,6 @@
 #include "Engine.hpp"
 #include <iostream>
-#include <physics/Transform2d.hpp>
+#include <math/Transform2d.hpp>
 #include <graphics/ShapeRenderer.hpp>
 #include <scripting/ScriptEngine.hpp>
 #include <scripting/ScriptComponent.hpp>
@@ -8,12 +8,12 @@
 #include <graphics/Animation2d.hpp>
 #include "AssetManager.hpp"
 #include <graphics/Animator2d.hpp>
-#include "world/ComponentRegistration.hpp"
-#include <world/ComponentRegistry.hpp>
-#include "InputManager.hpp"
+#include "scene/ComponentRegistration.hpp"
+#include <scene/ComponentRegistry.hpp>
+#include "input/InputManager.hpp"
 #include "graphics/TileMap.hpp"
 #include "GameStateManager.hpp"
-#include "Mouse.hpp"
+#include "input/Mouse.hpp"
 
 #ifndef STANDALONE_MODE
 #include "editor/Editor.hpp"

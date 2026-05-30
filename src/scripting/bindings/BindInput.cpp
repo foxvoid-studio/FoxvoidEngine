@@ -1,6 +1,6 @@
-#include "../ScriptBindings.hpp"
+#include "scripting/ScriptBindings.hpp"
 #include <raylib.h>
-#include <core/InputManager.hpp>
+#include <input/InputManager.hpp>
 
 void BindInput(py::module_& m) {
     // Create a submodule for Keys. This will act like a namespace/enum in Python.

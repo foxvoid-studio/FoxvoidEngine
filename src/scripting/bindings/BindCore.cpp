@@ -3,17 +3,17 @@
 #include <pybind11/stl.h>
 
 #include "../../core/Engine.hpp"
-#include "../../world/GameObject.hpp"
-#include "../../world/Component.hpp"
-#include "../../physics/Transform2d.hpp"
+#include "../../scene/GameObject.hpp"
+#include "../../scene/Component.hpp"
+#include "../../math/Transform2d.hpp"
 #include "../../graphics/SpriteRenderer.hpp"
 #include "../../graphics/SpriteSheetRenderer.hpp"
 #include "../../graphics/Animation2d.hpp"
-#include <world/ComponentRegistry.hpp>
+#include <scene/ComponentRegistry.hpp>
 #include "core/GameStateManager.hpp"
 #include "scripting/ScriptableObject.hpp"
 #include "scripting/DataManager.hpp"
-#include "world/Scene.hpp"
+#include "scene/Scene.hpp"
 #include <scripting/VFSLoader.hpp>
 #include <scripting/VFSFinder.hpp>
 

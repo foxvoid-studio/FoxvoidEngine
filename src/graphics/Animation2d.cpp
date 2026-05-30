@@ -1,6 +1,6 @@
 #include "Animation2d.hpp"
 #include "SpriteSheetRenderer.hpp"
-#include "../world/GameObject.hpp"
+#include "scene/GameObject.hpp"
 #include <iostream>
 #include <string>
 #include <cstring>
