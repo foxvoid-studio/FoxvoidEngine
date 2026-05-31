@@ -10,7 +10,7 @@
 #include <imgui.h>
 #include <extras/IconsFontAwesome6.h>
 #endif
-#include <core/AssetRegistry.hpp>
+#include "core/AssetRegistry.hpp"
 
 #include "editor/panels/CodeEditorPanel.hpp"
 #include "editor/panels/PrefabEditorPanel.hpp"

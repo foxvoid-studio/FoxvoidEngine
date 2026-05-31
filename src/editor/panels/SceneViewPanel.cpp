@@ -6,8 +6,10 @@
 #include "editor/commands/CommandHistory.hpp"
 #include "editor/commands/Transform2dCommand.hpp"
 #include "graphics/ShapeRenderer.hpp"
-#include <graphics/TileMap.hpp>
+#include "graphics/TileMap.hpp"
 #include "editor/commands/TileMapPaintCommand.hpp"
+#include "graphics/SpriteRenderer.hpp"
+#include "graphics/SpriteSheetRenderer.hpp"
 
 // Note the & on selectedTileID, selectedLayer, and currentTileTool
 void SceneViewPanel::Draw(RenderTexture2D& sceneTexture, EditorCamera& camera, Scene& activeScene, GameObject*& selectedObject, int& selectedTileID, int& selectedLayer, TileTool& currentTileTool, EditorViewMode& currentViewMode) {    

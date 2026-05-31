@@ -1,11 +1,12 @@
 #pragma once
 
-#include "scene/Component.hpp"
-#include "core/UUID.hpp"
 #include <raylib.h>
 #include <string>
 #include <unordered_map>
 #include <nlohmann/json.hpp>
+
+#include "scene/Component.hpp"
+#include "core/UUID.hpp"
 
 class AudioSource : public Component {
     public:

@@ -7,7 +7,7 @@
 #include "core/ProjectSettings.hpp"
 #include <portable-file-dialogs.h>
 #include <extras/IconsFontAwesome6.h>
-#include <core/AssetRegistry.hpp>
+#include "core/AssetRegistry.hpp"
 #include "build/Build.hpp"
 #include "build/IBuilder.hpp"
 

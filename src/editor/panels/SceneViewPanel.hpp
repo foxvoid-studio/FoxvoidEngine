@@ -2,7 +2,7 @@
 
 #include <raylib.h>
 #include "editor/EditorCamera.hpp"
-#include <scene/Scene.hpp>
+#include "scene/Scene.hpp"
 
 #ifndef STANDALONE_MODE
 #include <imgui.h>

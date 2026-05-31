@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <memory>
 #include <raylib.h>
+
 #include "scene/Scene.hpp"
 
 #ifndef STANDALONE_MODE

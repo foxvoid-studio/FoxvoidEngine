@@ -7,9 +7,9 @@
 #include <core/Engine.hpp>
 
 #ifndef STANDALONE_MODE
-#include <editor/commands/CommandHistory.hpp>
-#include <editor/commands/ModifyComponentCommand.hpp>
-#include <editor/EditorUI.hpp>
+#include "editor/commands/CommandHistory.hpp"
+#include "editor/commands/ModifyComponentCommand.hpp"
+#include "editor/EditorUI.hpp"
 #include "extras/IconsFontAwesome6.h"
 #endif
 

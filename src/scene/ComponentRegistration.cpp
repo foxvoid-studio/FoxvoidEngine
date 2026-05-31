@@ -2,25 +2,31 @@
 #include "ComponentRegistry.hpp"
 
 #include "math/Transform2d.hpp"
+
 #include "graphics/ShapeRenderer.hpp"
 #include "graphics/SpriteRenderer.hpp"
 #include "graphics/SpriteSheetRenderer.hpp"
 #include "graphics/Animation2d.hpp"
 #include "graphics/Animator2d.hpp"
-#include "scripting/ScriptComponent.hpp"
-#include "physics/colliders/RectCollider.hpp"
-#include "physics/RigidBody2d.hpp"
 #include "graphics/Camera2d.hpp"
 #include "graphics/TileMap.hpp"
 #include "graphics/ParticleSystem2d.hpp"
-#include "ui/TextRenderer.hpp"
-#include "ui/Button.hpp"
+
+#include "scripting/ScriptComponent.hpp"
+
+#include "physics/colliders/RectCollider.hpp"
+#include "physics/RigidBody2d.hpp"
+
 #include "scene/PersistentComponent.hpp"
+
 #include "audio/AudioSource.hpp"
+
 #include "physics/colliders/PolygonCollider.hpp"
 #include "physics/colliders/CircleCollider.hpp"
 #include "physics/colliders/CapsuleCollider.hpp"
 
+#include "ui/TextRenderer.hpp"
+#include "ui/Button.hpp"
 #include "ui/RectTransform.hpp"
 #include "ui/ImageRenderer.hpp"
 #include "ui/VBoxContainer.hpp"

@@ -1,8 +1,8 @@
 #include "InspectorPanel.hpp"
 #include "editor/commands/CommandHistory.hpp"
 #include "editor/commands/ChangeNameCommand.hpp"
-#include <scripting/ScriptableObject.hpp>
-#include <scripting/DataManager.hpp>
+#include "scripting/ScriptableObject.hpp"
+#include "scripting/DataManager.hpp"
 #include "editor/commands/ChangeTagCommand.hpp"
 
 void InspectorPanel::Draw(GameObject*& selectedObject, py::object& selectedAsset, std::string& selectedAssetPath) {

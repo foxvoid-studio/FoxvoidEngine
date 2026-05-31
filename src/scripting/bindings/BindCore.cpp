@@ -1,21 +1,23 @@
-#include "../ScriptBindings.hpp"
+#include "scripting/ScriptBindings.hpp"
 #include <iostream>
 #include <pybind11/stl.h>
 
-#include "../../core/Engine.hpp"
-#include "../../scene/GameObject.hpp"
-#include "../../scene/Component.hpp"
-#include "../../math/Transform2d.hpp"
-#include "../../graphics/SpriteRenderer.hpp"
-#include "../../graphics/SpriteSheetRenderer.hpp"
-#include "../../graphics/Animation2d.hpp"
-#include <scene/ComponentRegistry.hpp>
+#include "core/Engine.hpp"
+#include "scene/GameObject.hpp"
+#include "scene/Component.hpp"
+#include "math/Transform2d.hpp"
+#include "graphics/SpriteRenderer.hpp"
+#include "graphics/SpriteSheetRenderer.hpp"
+#include "graphics/Animation2d.hpp"
+#include "scene/ComponentRegistry.hpp"
 #include "core/GameStateManager.hpp"
 #include "scripting/ScriptableObject.hpp"
 #include "scripting/DataManager.hpp"
 #include "scene/Scene.hpp"
-#include <scripting/VFSLoader.hpp>
-#include <scripting/VFSFinder.hpp>
+#include "scripting/VFSLoader.hpp"
+#include "scripting/VFSFinder.hpp"
+#include "scripting/ScriptComponent.hpp"
+#include "scene/PersistentComponent.hpp"
 
 class Debug {
     public:

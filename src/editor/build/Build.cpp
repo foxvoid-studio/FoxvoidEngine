@@ -1,10 +1,8 @@
 #include "Build.hpp"
+
 #include "core/ProjectSettings.hpp"
 #include "core/AssetRegistry.hpp"
 #include "core/PakEntry.hpp"
-#include <iostream>
-#include <fstream>
-#include <algorithm>
 
 // Include our specific builders
 #include "IBuilder.hpp"
@@ -12,6 +10,10 @@
 #include "LinuxBuilder.hpp"
 #include "AndroidBuilder.hpp"
 #include "WebBuilder.hpp"
+
+#include <iostream>
+#include <fstream>
+#include <algorithm>
 
 // Initialize static members
 std::atomic<bool> Build::s_isBuilding{false};

@@ -1,9 +1,11 @@
 #include "ProjectSettings.hpp"
+
+#include "AssetRegistry.hpp"
 #include "scripting/PythonStubs.hpp"
+
 #include <fstream>
 #include <iostream>
 #include <sstream>
-#include "AssetRegistry.hpp"
 
 namespace fs = std::filesystem;
 

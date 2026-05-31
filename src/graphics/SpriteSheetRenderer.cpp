@@ -4,9 +4,9 @@
 #include "Graphics.hpp"
 #include <iostream>
 #include <cstring>
-#include <core/AssetManager.hpp>
+#include "core/AssetManager.hpp"
 #include <filesystem>
-#include <core/AssetRegistry.hpp>
+#include "core/AssetRegistry.hpp"
 
 SpriteSheetRenderer::SpriteSheetRenderer(const std::string& texturePath, int columns, int rows)
     : m_columns(columns), m_rows(rows), m_currentFrame(0), m_transform(nullptr) 

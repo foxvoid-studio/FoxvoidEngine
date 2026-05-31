@@ -1,7 +1,7 @@
 #include "TextRenderer.hpp"
 #include "math/Transform2d.hpp"
 #include "scene/GameObject.hpp"
-#include <core/AssetRegistry.hpp>
+#include "core/AssetRegistry.hpp"
 #include <iostream>
 #include <filesystem>
 #include "RectTransform.hpp"

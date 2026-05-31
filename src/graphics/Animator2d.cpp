@@ -7,8 +7,9 @@
 
 #ifndef STANDALONE_MODE
 #include <rlImGui.h>
-#include <editor/commands/CommandHistory.hpp>
-#include <editor/commands/ModifyComponentCommand.hpp>
+#include "editor/EditorUI.hpp"
+#include "editor/commands/CommandHistory.hpp"
+#include "editor/commands/ModifyComponentCommand.hpp"
 #include <extras/IconsFontAwesome6.h>
 #endif
 

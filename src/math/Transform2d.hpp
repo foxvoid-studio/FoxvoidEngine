@@ -7,9 +7,9 @@
 
 #ifndef STANDALONE_MODE
 #include <imgui.h>
-#include <editor/commands/CommandHistory.hpp>
-#include <editor/commands/ModifyComponentCommand.hpp>
-#include <editor/EditorUI.hpp>
+#include "editor/commands/CommandHistory.hpp"
+#include "editor/commands/ModifyComponentCommand.hpp"
+#include "editor/EditorUI.hpp"
 #endif
 
 class Transform2d : public Component {

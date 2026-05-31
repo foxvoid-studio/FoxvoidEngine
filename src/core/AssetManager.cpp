@@ -1,6 +1,8 @@
 #include "AssetManager.hpp"
+
 #include "graphics/Graphics.hpp"
 #include "core/AssetRegistry.hpp"
+
 #include <filesystem>
 #include <vector>
 #include <iostream>

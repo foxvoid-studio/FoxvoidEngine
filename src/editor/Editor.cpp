@@ -3,10 +3,10 @@
 #include "graphics/TileMap.hpp"
 #include "physics/PhysicsEngine.hpp"
 #include <iostream>
-#include <core/ProjectSettings.hpp>
-#include <scripting/ScriptEngine.hpp>
-#include <input/InputManager.hpp>
-#include <core/GameStateManager.hpp>
+#include "core/ProjectSettings.hpp"
+#include "scripting/ScriptEngine.hpp"
+#include "input/InputManager.hpp"
+#include "core/GameStateManager.hpp"
 #include "core/Engine.hpp"
 
 #ifndef STANDALONE_MODE
@@ -14,7 +14,7 @@
 #include <rlImGui.h>
 #include "ImGuizmo.h"
 #endif
-#include <core/AssetRegistry.hpp>
+#include "core/AssetRegistry.hpp"
 
 Editor::Editor(int windowWidth, int windowHeight) {
     // Initialize Console Redirects

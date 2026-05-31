@@ -1,7 +1,9 @@
 #include "AudioSource.hpp"
+
+#include "core/AssetRegistry.hpp"
+
 #include <iostream>
 #include <filesystem>
-#include <core/AssetRegistry.hpp>
 
 #ifndef STANDALONE_MODE
 #include "editor/EditorUI.hpp"

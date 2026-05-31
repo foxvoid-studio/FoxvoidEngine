@@ -1,6 +1,8 @@
 #include "WebBuilder.hpp"
+
 #include "Build.hpp"
 #include "core/ProjectSettings.hpp"
+
 #include <filesystem>
 #include <cstdlib>
 #include <fstream>
