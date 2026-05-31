@@ -205,6 +205,7 @@ file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS
     "src/graphics/*.cpp"
     "src/ui/*.cpp"
     "src/physics/*.cpp"
+    "src/math/*.cpp"
     "src/scripting/*.cpp"
     "src/scene/*.cpp"
     "src/main.cpp"
