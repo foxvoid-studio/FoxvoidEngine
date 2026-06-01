@@ -1,5 +1,5 @@
 #include "VBoxContainer.hpp"
-#include "ui/RectTransform.hpp"
+#include "ui/core/RectTransform.hpp"
 #include "scene/GameObject.hpp"
 
 #ifndef STANDALONE_MODE

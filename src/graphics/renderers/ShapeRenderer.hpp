@@ -3,7 +3,7 @@
 #include "scene/Component.hpp"
 #include "scene/GameObject.hpp"
 #include "math/Transform2d.hpp"
-#include "ui/RectTransform.hpp"
+#include "ui/core/RectTransform.hpp"
 #include <raylib.h>
 #include <rlgl.h>
 

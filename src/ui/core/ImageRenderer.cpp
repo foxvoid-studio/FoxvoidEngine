@@ -1,5 +1,5 @@
 #include "ImageRenderer.hpp"
-#include "ui/RectTransform.hpp"
+#include "ui/core/RectTransform.hpp"
 #include "math/Transform2d.hpp"
 #include "core/AssetManager.hpp"
 #include "core/AssetRegistry.hpp"

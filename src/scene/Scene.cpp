@@ -19,8 +19,8 @@
 #include "graphics/Camera2d.hpp"
 #include "scripting/ScriptComponent.hpp"
 #include "scripting/ScriptBindings.hpp"
-#include "ui/Mask.hpp"
-#include "ui/RectTransform.hpp"
+#include "ui/core/Mask.hpp"
+#include "ui/core/RectTransform.hpp"
 #include "core/AssetRegistry.hpp"
 
 // Factory method to create a new GameObject inside this scene

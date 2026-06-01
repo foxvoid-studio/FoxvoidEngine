@@ -1,5 +1,5 @@
 #include "Slider.hpp"
-#include "ui/RectTransform.hpp"
+#include "ui/core/RectTransform.hpp"
 #include "scene/GameObject.hpp"
 #include "input/Mouse.hpp"
 

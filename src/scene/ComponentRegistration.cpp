@@ -28,16 +28,16 @@
 #include "physics/colliders/CircleCollider.hpp"
 #include "physics/colliders/CapsuleCollider.hpp"
 
-#include "ui/TextRenderer.hpp"
-#include "ui/Button.hpp"
-#include "ui/RectTransform.hpp"
-#include "ui/ImageRenderer.hpp"
-#include "ui/VBoxContainer.hpp"
-#include "ui/HBoxContainer.hpp"
-#include "ui/Mask.hpp"
-#include "ui/Checkbox.hpp"
-#include "ui/Slider.hpp"
-#include "ui/TextInput.hpp"
+#include "ui/core/TextRenderer.hpp"
+#include "ui/controls/Button.hpp"
+#include "ui/core/RectTransform.hpp"
+#include "ui/core/ImageRenderer.hpp"
+#include "ui/containers/VBoxContainer.hpp"
+#include "ui/containers/HBoxContainer.hpp"
+#include "ui/core/Mask.hpp"
+#include "ui/controls/Checkbox.hpp"
+#include "ui/controls/Slider.hpp"
+#include "ui/controls/TextInput.hpp"
 
 namespace EngineSetup {
     void RegisterNativeComponents() {
