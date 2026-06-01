@@ -353,6 +353,24 @@ void ScriptComponent::OnInspector() {
             }
         }
 
+        std::map<std::string, std::pair<float, float>> ranges;
+        if (py::hasattr(m_instance, "__ranges__")) {
+            try {
+                py::dict pyRanges = m_instance.attr("__ranges__");
+                for (auto item : pyRanges) {
+                    py::tuple limits = py::cast<py::tuple>(item.second);
+                    if (py::len(limits) == 2) {
+                        ranges[py::str(item.first)] = {
+                            limits[0].cast<float>(),
+                            limits[1].cast<float>()
+                        };
+                    }
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "[Editor] Error reading __ranges__: " << e.what() << std::endl;
+            }
+        }
+
         // Helper Lambda to draw a single property
         // This avoids duplicating the drawing code for categorized and uncategorized variables
         auto DrawPythonVariable = [&](const std::string& key, py::object value) {
@@ -398,7 +416,17 @@ void ScriptComponent::OnInspector() {
             // 2. Fallback to standard types
             else if (py::isinstance<py::float_>(value)) {
                 float v = value.cast<float>();
-                if (EditorUI::DragFloat(key.c_str(), &v, 0.1f, this)) {
+
+                float min = 0.0f, max = 0.0f;
+                bool hasRange = ranges.contains(key);
+                if (hasRange) {
+                    min = ranges.at(key).first;
+                    max = ranges.at(key).second;
+                }
+
+                if (EditorUI::DragFloat(key.c_str(), &v, 0.1f, this, min, max)) {
+                    if (hasRange) v = std::clamp(v, min, max);
+                    
                     m_instance.attr(key.c_str()) = v;
                 }
             }
@@ -410,7 +438,17 @@ void ScriptComponent::OnInspector() {
             }
             else if (py::isinstance<py::int_>(value)) {
                 int v = value.cast<int>();
+                
+                int min = 0, max = 0;
+                bool hasRange = ranges.contains(key);
+                if (hasRange) {
+                    min = static_cast<int>(ranges.at(key).first);
+                    max = static_cast<int>(ranges.at(key).second);
+                }
+
                 if (EditorUI::DragInt(key.c_str(), &v, 1.0f, this)) {
+                    if (hasRange) v = std::clamp(v, min, max);
+                    
                     m_instance.attr(key.c_str()) = v;
                 }
             }

@@ -222,6 +222,30 @@ class Component:
         }
     """
 
+        __tooltips__: Dict[str, str]
+    """
+    (Optional) Editor metadata to display help text when hovering over variables in the Inspector.
+    Format: {"variable_name": "Help text"}
+
+    Example:
+        __tooltips__ = {
+            "is_wanderer": "Enables or disables random wandering.",
+            "speed": "Movement speed in pixels per second."
+        }
+    """
+
+    __ranges__: Dict[str, Tuple[float, float]]
+    """
+    (Optional) Editor metadata to clamp numerical variables (int or float) in the Inspector.
+    Format: {"variable_name": (min_value, max_value)}
+
+    Example:
+        __ranges__ = {
+            "speed": (10.0, 500.0),
+            "wander_radius": (50.0, 1000.0)
+        }
+    """
+
     def __init__(self) -> None: 
         """Initializes the C++ base component memory."""
         ...
