@@ -171,10 +171,11 @@ void BindCore(py::module_& m) {
             py::return_value_policy::reference, py::arg("name")
         )
         .def_static("find_objects_with_tag", 
-            [](const std::string& targetTag) {
+            [](const std::string& targetTag) -> std::vector<GameObject*> {
                 if (Engine::Get()) {
                     return Engine::Get()->GetActiveScene().FindObjectsWithTag(targetTag);
                 }
+                return {};
             },
             py::return_value_policy::reference
         );
