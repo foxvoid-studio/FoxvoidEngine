@@ -341,6 +341,18 @@ void ScriptComponent::OnInspector() {
         py::dict attributes = m_instance.attr("__dict__");
         static nlohmann::json initialDynamicState;
 
+        std::map<std::string, std::string> tooltips;
+        if (py::hasattr(m_instance, "__tooltips__")) {
+            try {
+                py::dict pyTooltips = m_instance.attr("__tooltips__");
+                for (auto item : pyTooltips) {
+                    tooltips[py::str(item.first)] = py::str(item.second);
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "[Editor] Error reading __tooltips__:" << e.what() << std::endl;
+            }
+        }
+
         // Helper Lambda to draw a single property
         // This avoids duplicating the drawing code for categorized and uncategorized variables
         auto DrawPythonVariable = [&](const std::string& key, py::object value) {
@@ -424,6 +436,14 @@ void ScriptComponent::OnInspector() {
             else {
                 std::string typeName = py::str(value.get_type().attr("__name__"));
                 ImGui::TextDisabled("%s : [%s]", key.c_str(), typeName.c_str());
+            }
+
+            if (tooltips.contains(key) && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                ImGui::BeginTooltip();
+                    ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+                    ImGui::TextUnformatted(tooltips.at(key).c_str());
+                    ImGui::PopTextWrapPos();
+                ImGui::EndTooltip();
             }
         };
 
