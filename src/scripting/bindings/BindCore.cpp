@@ -11,6 +11,7 @@
 #include "graphics/animation/Animation2d.hpp"
 #include "scene/ComponentRegistry.hpp"
 #include "core/GameStateManager.hpp"
+#include "core/events/EventBus.hpp"
 #include "scripting/ScriptableObject.hpp"
 #include "scripting/DataManager.hpp"
 #include "scene/Scene.hpp"
@@ -211,4 +212,29 @@ void BindCore(py::module_& m) {
         .def_static("load_asset", &DataManager::LoadAsset, py::arg("filepath"))
         .def_static("save_asset", &DataManager::SaveAsset, py::arg("asset"), py::arg("filepath"))
         .def_static("clear_cache", &DataManager::ClearCache);
+
+    py::class_<EventBus>(m, "EventBus")
+        .def_static("subscribe", [](const std::string& eventName, py::function callback) {
+            return EventBus::Subscribe(eventName, [callback](const nlohmann::json& payload) {
+                // Bridge: C++ nlohmann::json -> Python Dict
+                // We stringify the JSON in C++ and use Python's fast json module to decode it into a dict
+                std::string jsonStr = payload.dump();
+                py::module_ json = py::module_::import("json");
+                py::object pyPayload = json.attr("loads")(jsonStr);
+                
+                callback(pyPayload);
+            });
+        })
+        .def_static("unsubscribe", &EventBus::Unsubscribe)
+        .def_static("publish", [](const std::string& eventName, py::object pyPayload) {
+            // Bridge: Python Dict -> C++ nlohmann::json
+            py::module_ json = py::module_::import("json");
+            std::string jsonStr = py::cast<std::string>(json.attr("dumps")(pyPayload));
+            
+            EventBus::Publish(eventName, nlohmann::json::parse(jsonStr));
+        })
+        // Overload to allow publishing without a payload
+        .def_static("publish_empty", [](const std::string& eventName) {
+            EventBus::Publish(eventName);
+        });
 }

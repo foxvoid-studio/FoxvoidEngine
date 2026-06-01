@@ -22,6 +22,11 @@
 #include "ui/core/Mask.hpp"
 #include "ui/core/RectTransform.hpp"
 #include "core/assets/AssetRegistry.hpp"
+#include "core/events/EventBus.hpp"
+
+#ifndef STANDALONE_MODE
+#include "editor/commands/CommandHistory.hpp"
+#endif
 
 // Factory method to create a new GameObject inside this scene
 GameObject* Scene::CreateGameObject(const std::string& name) {
@@ -130,6 +135,13 @@ void Scene::RenderHUD() {
 
 void Scene::Clear(bool keepPersistent) {
     m_isRunning = false;
+
+#ifndef STANDALONE_MODE
+    CommandHistory::Clear();
+#endif
+
+    // Clear all active events to prevent ghost callbacks
+    EventBus::Clear();
 
     if (!keepPersistent) {
         // Editor stop mode: Destroy absolutely everything to restore the backup

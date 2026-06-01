@@ -11,7 +11,7 @@ const std::string FOXVOID_PYI_CONTENT = R"(
 # implementation is handled natively in C++.
 
 from enum import Enum
-from typing import TypeVar, Type, Optional, List, overload, Tuple, Dict
+from typing import TypeVar, Type, Optional, List, overload, Tuple, Dict, Callable, Any
 
 # Type variable for smart autocompletion in the get_component method.
 # It ensures that getting a Transform2d actually returns a Transform2d type in the IDE.
@@ -1402,5 +1402,53 @@ class CapsuleCollider(Component):
         and cannot be strictly smaller than radius * 2.
         """
         ...
- 
+
+
+class EventBus:
+    """
+    Global event bus for decoupled communication between C++ and Python, 
+    or between different Python scripts. Uses JSON-serializable payloads.
+    """
+
+    @staticmethod
+    def subscribe(event_name: str, callback: Callable[[Dict[str, Any]], None]) -> int:
+        """
+        Subscribes a callback function to a specific event.
+
+        :param event_name: The name of the event to listen to.
+        :param callback: A function that takes a dictionary (the parsed JSON payload) as its single argument.
+        :return: A unique listener ID, which must be used to unsubscribe later.
+        """
+        ...
+
+    @staticmethod
+    def unsubscribe(event_name: str, listener_id: int) -> None:
+        """
+        Removes a specific listener from an event to prevent memory leaks and ghost calls.
+        Should typically be called in the on_destroy() method of a ScriptComponent.
+
+        :param event_name: The name of the event.
+        :param listener_id: The unique ID returned by subscribe().
+        """
+        ...
+
+    @staticmethod
+    def publish(event_name: str, payload: Dict[str, Any]) -> None:
+        """
+        Publishes an event to all subscribers with a data payload.
+
+        :param event_name: The name of the event.
+        :param payload: A dictionary representing the data to send. It must be fully JSON serializable.
+        """
+        ...
+
+    @staticmethod
+    def publish_empty(event_name: str) -> None:
+        """
+        Publishes an event to all subscribers without a specific payload.
+        Note: The subscribed callbacks will receive an empty dictionary {}.
+
+        :param event_name: The name of the event.
+        """
+        ...
 )";
