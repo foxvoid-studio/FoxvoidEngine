@@ -1,6 +1,6 @@
 #include "ProjectSettings.hpp"
 
-#include "AssetRegistry.hpp"
+#include "core/assets/AssetRegistry.hpp"
 #include "scripting/PythonStubs.hpp"
 
 #include <fstream>

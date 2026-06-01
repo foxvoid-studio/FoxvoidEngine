@@ -1,5 +1,5 @@
 #include "ProjectHubPanel.hpp"
-#include "core/ProjectSettings.hpp"
+#include "core/utils/ProjectSettings.hpp"
 #include <fstream>
 #include <algorithm>
 #include <nlohmann/json.hpp>

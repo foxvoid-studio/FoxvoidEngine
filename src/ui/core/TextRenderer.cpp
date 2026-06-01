@@ -1,11 +1,11 @@
 #include "TextRenderer.hpp"
 #include "math/Transform2d.hpp"
 #include "scene/GameObject.hpp"
-#include "core/AssetRegistry.hpp"
+#include "core/assets/AssetRegistry.hpp"
+#include <core/assets/AssetManager.hpp>
 #include <iostream>
 #include <filesystem>
 #include "RectTransform.hpp"
-#include <core/AssetManager.hpp>
 
 #ifndef STANDALONE_MODE
 #include "editor/EditorUI.hpp"

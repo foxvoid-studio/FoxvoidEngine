@@ -3,7 +3,8 @@
 #include "graphics/renderers/TileMap.hpp"
 #include "physics/PhysicsEngine.hpp"
 #include <iostream>
-#include "core/ProjectSettings.hpp"
+#include "core/utils/ProjectSettings.hpp"
+#include "core/assets/AssetRegistry.hpp"
 #include "scripting/ScriptEngine.hpp"
 #include "input/InputManager.hpp"
 #include "core/GameStateManager.hpp"
@@ -14,7 +15,6 @@
 #include <rlImGui.h>
 #include "ImGuizmo.h"
 #endif
-#include "core/AssetRegistry.hpp"
 
 Editor::Editor(int windowWidth, int windowHeight) {
     // Initialize Console Redirects

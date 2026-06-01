@@ -1,7 +1,7 @@
 #pragma once
 
 #include "scene/Component.hpp"
-#include "core/UUID.hpp"
+#include "core/utils/UUID.hpp"
 #include <raylib.h>
 #include <vector>
 #include <string>

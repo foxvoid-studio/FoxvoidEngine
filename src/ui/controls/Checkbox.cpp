@@ -5,7 +5,7 @@
 #include "scene/GameObject.hpp"
 #include "core/Engine.hpp"
 #include "input/Mouse.hpp"
-#include "core/AssetRegistry.hpp"
+#include "core/assets/AssetRegistry.hpp"
 #include <filesystem>
 
 #ifndef STANDALONE_MODE

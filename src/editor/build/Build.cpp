@@ -1,8 +1,8 @@
 #include "Build.hpp"
 
-#include "core/ProjectSettings.hpp"
-#include "core/AssetRegistry.hpp"
-#include "core/PakEntry.hpp"
+#include "core/utils/ProjectSettings.hpp"
+#include "core/assets/AssetRegistry.hpp"
+#include "core/assets/PakEntry.hpp"
 
 // Include our specific builders
 #include "IBuilder.hpp"

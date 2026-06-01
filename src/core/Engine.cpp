@@ -1,6 +1,6 @@
 #include "Engine.hpp"
 
-#include "AssetManager.hpp"
+#include "core/assets/AssetManager.hpp"
 #include "GameStateManager.hpp"
 
 #include "input/InputManager.hpp"

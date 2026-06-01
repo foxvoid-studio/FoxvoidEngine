@@ -1,5 +1,5 @@
 #include "Graphics.hpp"
-#include "core/AssetRegistry.hpp"
+#include "core/assets/AssetRegistry.hpp"
 #include <vector>
 #include <filesystem>
 #include <iostream>

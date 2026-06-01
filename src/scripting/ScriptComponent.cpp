@@ -7,7 +7,7 @@
 #include <vector>
 #include <algorithm>
 
-#include "core/AssetRegistry.hpp"
+#include "core/assets/AssetRegistry.hpp"
 #include "scene/GameObject.hpp"
 
 #ifndef STANDALONE_MODE

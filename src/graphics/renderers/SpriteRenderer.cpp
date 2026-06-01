@@ -3,8 +3,8 @@
 #include "scene/GameObject.hpp"
 #include "math/Transform2d.hpp"
 #include <iostream>
-#include "core/AssetManager.hpp"
-#include "core/AssetRegistry.hpp"
+#include "core/assets/AssetManager.hpp"
+#include "core/assets/AssetRegistry.hpp"
 #include <filesystem>
 
 #ifndef STANDALONE_MODE

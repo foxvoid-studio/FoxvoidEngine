@@ -1,7 +1,7 @@
 #include "AndroidBuilder.hpp"
 
 #include "Build.hpp"
-#include "core/ProjectSettings.hpp"
+#include "core/utils/ProjectSettings.hpp"
 
 #include <filesystem>
 #include <cstdlib>

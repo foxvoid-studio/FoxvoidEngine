@@ -6,7 +6,7 @@
 #include <nlohmann/json.hpp>
 
 #include "scene/Component.hpp"
-#include "core/UUID.hpp"
+#include "core/utils/UUID.hpp"
 
 class AudioSource : public Component {
     public:

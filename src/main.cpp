@@ -1,5 +1,5 @@
 #include "core/Engine.hpp"
-#include "core/ProjectSettings.hpp"
+#include "core/utils/ProjectSettings.hpp"
 #include <iostream>
 #include <filesystem>
 #include <fstream>
@@ -10,7 +10,7 @@
 #ifdef STANDALONE_MODE
 #include "input/InputManager.hpp"
 #include "core/GameStateManager.hpp"
-#include "core/AssetRegistry.hpp"
+#include "core/assets/AssetRegistry.hpp"
 #include "scripting/ScriptEngine.hpp"
 #endif
 

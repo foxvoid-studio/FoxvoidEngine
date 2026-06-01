@@ -4,10 +4,10 @@
 #include <filesystem>
 #include <cctype>
 #include "commands/CommandHistory.hpp"
-#include "core/ProjectSettings.hpp"
+#include "core/utils/ProjectSettings.hpp"
 #include <portable-file-dialogs.h>
 #include <extras/IconsFontAwesome6.h>
-#include "core/AssetRegistry.hpp"
+#include "core/assets/AssetRegistry.hpp"
 #include "build/Build.hpp"
 #include "build/IBuilder.hpp"
 

@@ -1,6 +1,6 @@
 #include "AudioSource.hpp"
 
-#include "core/AssetRegistry.hpp"
+#include "core/assets/AssetRegistry.hpp"
 
 #include <iostream>
 #include <filesystem>

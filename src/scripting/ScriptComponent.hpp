@@ -1,7 +1,7 @@
 #pragma once
 
 #include "scene/Component.hpp"
-#include "core/UUID.hpp"
+#include "core/utils/UUID.hpp"
 #include <string>
 #include <pybind11/pybind11.h>
 #include <nlohmann/json.hpp>

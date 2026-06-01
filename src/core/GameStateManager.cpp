@@ -1,6 +1,6 @@
 #include "GameStateManager.hpp"
 
-#include "core/AssetRegistry.hpp"
+#include "core/assets/AssetRegistry.hpp"
 
 #include <fstream>
 #include <iostream>

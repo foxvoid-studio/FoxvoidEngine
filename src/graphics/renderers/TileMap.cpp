@@ -2,6 +2,7 @@
 #include "math/Transform2d.hpp"
 #include "scene/GameObject.hpp"
 #include "graphics/Graphics.hpp"
+#include "core/assets/AssetRegistry.hpp"
 #include <iostream>
 #include <queue>
 
@@ -9,7 +10,6 @@
 #include "editor/EditorUI.hpp"
 #include <imgui.h>
 #endif
-#include <core/AssetRegistry.hpp>
 
 TileMap::TileMap()
     : tileSize { 32.0f, 32.0f }, tileSpacing(0), gridWidth(10), gridHeight(10)

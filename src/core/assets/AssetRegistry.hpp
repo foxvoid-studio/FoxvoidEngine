@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <string>
 
-#include "UUID.hpp"
+#include "core/utils/UUID.hpp"
 #include "PakEntry.hpp"
 
 namespace fs = std::filesystem;

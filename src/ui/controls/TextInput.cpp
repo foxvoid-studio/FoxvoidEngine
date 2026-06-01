@@ -2,8 +2,8 @@
 #include "ui/core/RectTransform.hpp"
 #include "scene/GameObject.hpp"
 #include "input/Mouse.hpp"
-#include "core/AssetManager.hpp"
-#include "core/AssetRegistry.hpp"
+#include "core/assets/AssetManager.hpp"
+#include "core/assets/AssetRegistry.hpp"
 #include <filesystem>
 
 #ifndef STANDALONE_MODE

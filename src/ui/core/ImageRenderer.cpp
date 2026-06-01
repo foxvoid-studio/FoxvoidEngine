@@ -1,8 +1,8 @@
 #include "ImageRenderer.hpp"
 #include "ui/core/RectTransform.hpp"
 #include "math/Transform2d.hpp"
-#include "core/AssetManager.hpp"
-#include "core/AssetRegistry.hpp"
+#include "core/assets/AssetManager.hpp"
+#include "core/assets/AssetRegistry.hpp"
 #include <iostream>
 #include <filesystem>
 

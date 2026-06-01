@@ -1,7 +1,7 @@
 #include "AssetManager.hpp"
 
 #include "graphics/Graphics.hpp"
-#include "core/AssetRegistry.hpp"
+#include "core/assets/AssetRegistry.hpp"
 
 #include <filesystem>
 #include <vector>

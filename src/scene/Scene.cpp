@@ -21,7 +21,7 @@
 #include "scripting/ScriptBindings.hpp"
 #include "ui/core/Mask.hpp"
 #include "ui/core/RectTransform.hpp"
-#include "core/AssetRegistry.hpp"
+#include "core/assets/AssetRegistry.hpp"
 
 // Factory method to create a new GameObject inside this scene
 GameObject* Scene::CreateGameObject(const std::string& name) {
