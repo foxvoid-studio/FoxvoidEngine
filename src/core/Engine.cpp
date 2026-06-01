@@ -8,11 +8,11 @@
 
 #include "math/Transform2d.hpp"
 
-#include "graphics/ShapeRenderer.hpp"
-#include "graphics/SpriteSheetRenderer.hpp"
-#include "graphics/Animation2d.hpp"
-#include "graphics/Animator2d.hpp"
-#include "graphics/TileMap.hpp"
+#include "graphics/renderers/ShapeRenderer.hpp"
+#include "graphics/renderers/SpriteSheetRenderer.hpp"
+#include "graphics/animation/Animation2d.hpp"
+#include "graphics/animation/Animator2d.hpp"
+#include "graphics/renderers/TileMap.hpp"
 
 #include "scripting/ScriptEngine.hpp"
 #include "scripting/ScriptComponent.hpp"

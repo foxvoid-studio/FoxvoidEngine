@@ -1,6 +1,6 @@
 #include "Animator2d.hpp"
 #include "scene/GameObject.hpp"
-#include "SpriteSheetRenderer.hpp"
+#include "graphics/renderers/SpriteSheetRenderer.hpp"
 #include "core/Engine.hpp"
 #include <iostream>
 #include <sstream>

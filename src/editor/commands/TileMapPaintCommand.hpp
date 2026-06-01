@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ICommand.hpp"
-#include "graphics/TileMap.hpp"
+#include "graphics/renderers/TileMap.hpp"
 #include <vector>
 
 class TileMapPaintCommand : public ICommand {

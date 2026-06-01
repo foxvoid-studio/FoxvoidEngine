@@ -1,6 +1,6 @@
 #include "TilePalettePanel.hpp"
 #include <algorithm>
-#include "graphics/TileMap.hpp"
+#include "graphics/renderers/TileMap.hpp"
 
 #ifndef STANDALONE_MODE
 #include <imgui.h>

@@ -1,6 +1,6 @@
 #include "Checkbox.hpp"
 #include "ui/RectTransform.hpp"
-#include "graphics/ShapeRenderer.hpp"
+#include "graphics/renderers/ShapeRenderer.hpp"
 #include "ui/ImageRenderer.hpp"
 #include "scene/GameObject.hpp"
 #include "core/Engine.hpp"

@@ -1,5 +1,5 @@
 #include "Animation2d.hpp"
-#include "SpriteSheetRenderer.hpp"
+#include "graphics/renderers/SpriteSheetRenderer.hpp"
 #include "scene/GameObject.hpp"
 #include <iostream>
 #include <string>

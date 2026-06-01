@@ -3,14 +3,17 @@
 
 #include "math/Transform2d.hpp"
 
-#include "graphics/ShapeRenderer.hpp"
-#include "graphics/SpriteRenderer.hpp"
-#include "graphics/SpriteSheetRenderer.hpp"
-#include "graphics/Animation2d.hpp"
-#include "graphics/Animator2d.hpp"
+#include "graphics/renderers/ShapeRenderer.hpp"
+#include "graphics/renderers/SpriteRenderer.hpp"
+#include "graphics/renderers/SpriteSheetRenderer.hpp"
+#include "graphics/renderers/TileMap.hpp"
+
+#include "graphics/animation/Animation2d.hpp"
+#include "graphics/animation/Animator2d.hpp"
+
+#include "graphics/particles/ParticleSystem2d.hpp"
+
 #include "graphics/Camera2d.hpp"
-#include "graphics/TileMap.hpp"
-#include "graphics/ParticleSystem2d.hpp"
 
 #include "scripting/ScriptComponent.hpp"
 

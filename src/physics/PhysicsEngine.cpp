@@ -2,7 +2,7 @@
 #include "math/Transform2d.hpp"
 #include "physics/RigidBody2d.hpp"
 #include "physics/colliders/RectCollider.hpp"
-#include "graphics/TileMap.hpp"
+#include "graphics/renderers/TileMap.hpp"
 #include "scene/Scene.hpp"
 #include <raymath.h>
 #include <cmath>

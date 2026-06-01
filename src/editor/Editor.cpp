@@ -1,6 +1,6 @@
 #include "Editor.hpp"
 #include "extras/IconsFontAwesome6.h"
-#include "graphics/TileMap.hpp"
+#include "graphics/renderers/TileMap.hpp"
 #include "physics/PhysicsEngine.hpp"
 #include <iostream>
 #include "core/ProjectSettings.hpp"

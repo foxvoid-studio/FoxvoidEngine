@@ -4,7 +4,7 @@
 #include <raymath.h>
 #include "core/Engine.hpp"
 #include "scene/Scene.hpp"
-#include "graphics/TileMap.hpp"
+#include "graphics/renderers/TileMap.hpp"
 
 #ifndef STANDALONE_MODE
 #include "editor/EditorUI.hpp"
