@@ -383,10 +383,30 @@ void ScriptComponent::OnInspector() {
             }
         }
 
+        std::vector<std::string> readonlyVars;
+        if (py::hasattr(m_instance, "__readonly__")) {
+            try {
+                py::list pyReadonly = m_instance.attr("__readonly__");
+                for (auto item : pyReadonly) {
+                    readonlyVars.push_back(py::str(item));
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "[Editor] Error reading __readonly__: " << e.what() << std::endl;
+            }
+        }
+
         // Helper Lambda to draw a single property
         // This avoids duplicating the drawing code for categorized and uncategorized variables
         auto DrawPythonVariable = [&](const std::string& key, py::object value) {
             if (py::isinstance<Component>(value)) return;
+
+            // Check if the current variable is flagged as read-only
+            bool isReadonly = std::find(readonlyVars.begin(), readonlyVars.end(), key) != readonlyVars.end();
+            
+            // Disable interactions and gray out the widget if it's read-only
+            if (isReadonly) {
+                ImGui::BeginDisabled();
+            }
 
             // Fetch the Python class of the variable
             py::object cls = value.attr("__class__");
@@ -506,6 +526,11 @@ void ScriptComponent::OnInspector() {
                     ImGui::TextUnformatted(tooltips.at(key).c_str());
                     ImGui::PopTextWrapPos();
                 ImGui::EndTooltip();
+            }
+
+            // Re-enable interactions for the next UI elements
+            if (isReadonly) {
+                ImGui::EndDisabled();
             }
         };
 

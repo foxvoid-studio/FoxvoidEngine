@@ -247,6 +247,16 @@ class Component:
         __multiline__ = ["quest_description", "npc_dialogue"]
     """
 
+    __readonly__: List[str]
+    """
+    (Optional) Editor metadata to render variables as read-only (grayed out) in the Inspector.
+    Useful for exposing internal state or dynamic values for debugging purposes without risking accidental edits.
+    Format: ["var_name_1", "var_name_2"]
+
+    Example:
+        __readonly__ = ["current_health", "target_distance"]
+    """
+
     def __init__(self) -> None: 
         """Initializes the C++ base component memory."""
         ...
