@@ -371,6 +371,18 @@ void ScriptComponent::OnInspector() {
             }
         }
 
+        std::vector<std::string> multilineVars;
+        if (py::hasattr(m_instance, "__multiline__")) {
+            try {
+                py::list pyMultiline = m_instance.attr("__multiline__");
+                for (auto item : pyMultiline) {
+                    multilineVars.push_back(py::str(item));
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "[Editor] Error reading __multiline__: " << e.what() << std::endl;
+            }
+        }
+
         // Helper Lambda to draw a single property
         // This avoids duplicating the drawing code for categorized and uncategorized variables
         auto DrawPythonVariable = [&](const std::string& key, py::object value) {
@@ -455,12 +467,24 @@ void ScriptComponent::OnInspector() {
             else if (py::isinstance<py::str>(value)) {
                 std::string v = value.cast<std::string>();
                 
-                char buffer[256];
+                // A generous buffer size for long dialogues or quest descriptions
+                char buffer[2048];
                 strncpy(buffer, v.c_str(), sizeof(buffer));
                 buffer[sizeof(buffer) - 1] = '\0';
                 
-                ImGui::InputText(key.c_str(), buffer, sizeof(buffer));
+                // Check if the current variable is flagged as a multiline string
+                bool isMultiline = std::find(multilineVars.begin(), multilineVars.end(), key) != multilineVars.end();
 
+                // Draw the appropriate ImGui widget
+                if (isMultiline) {
+                    // ImVec2(0, height) -> 0 makes it take the full available width, 
+                    // and we set a fixed height (e.g., ~4 lines of text)
+                    ImGui::InputTextMultiline(key.c_str(), buffer, sizeof(buffer), ImVec2(0, ImGui::GetTextLineHeight() * 4.2f));
+                } else {
+                    ImGui::InputText(key.c_str(), buffer, sizeof(buffer));
+                }
+
+                // Handle Undo/Redo history and Python value assignment
                 if (ImGui::IsItemActivated()) {
                     initialDynamicState = Serialize();
                 }
