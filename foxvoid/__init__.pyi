@@ -238,6 +238,15 @@ class Component:
         }
     """
 
+    __multiline__: List[str]
+    """
+    (Optional) Editor metadata to render string variables as a multiline text area in the Inspector.
+    Format: ["var_name_1", "var_name_2"]
+
+    Example:
+        __multiline__ = ["quest_description", "npc_dialogue"]
+    """
+
     def __init__(self) -> None: 
         """Initializes the C++ base component memory."""
         ...
