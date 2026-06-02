@@ -395,6 +395,18 @@ void ScriptComponent::OnInspector() {
             }
         }
 
+        std::vector<std::string> actionMethods;
+        if (py::hasattr(m_instance, "__actions__")) {
+            try {
+                py::list pyActions = m_instance.attr("__actions__");
+                for (auto item : pyActions) {
+                    actionMethods.push_back(py::str(item));
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "[Editor] Error reading __actions__: " << e.what() << std::endl;
+            }
+        }
+
         // Helper Lambda to draw a single property
         // This avoids duplicating the drawing code for categorized and uncategorized variables
         auto DrawPythonVariable = [&](const std::string& key, py::object value) {
@@ -605,6 +617,30 @@ void ScriptComponent::OnInspector() {
             if (std::find(categorizedVars.begin(), categorizedVars.end(), key) == categorizedVars.end()) {
                 py::object value = py::reinterpret_borrow<py::object>(item.second);
                 DrawPythonVariable(key, value);
+            }
+        }
+
+        // Draw custom buttons at the bottom of the inspector for specific script methods
+        if (!actionMethods.empty()) {
+            ImGui::Separator();
+            ImGui::TextDisabled("Script Actions");
+
+            // Draw a button for each declared method in the __actions__ list
+            for (const auto& methodName : actionMethods) {
+                if (ImGui::Button(methodName.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
+                    try {
+                        // Double check if the method actually exists before invoking it
+                        if (py::hasattr(m_instance, methodName.c_str())) {
+                            m_instance.attr(methodName.c_str())();
+                        } else {
+                            std::cerr << "[ScriptComponent] Warning: Method '" << methodName 
+                                      << "' declared in __actions__ but not found in script." << std::endl;
+                        }
+                    } catch (const py::error_already_set& e) {
+                        std::cerr << "[ScriptComponent] Action Execution Error (" << methodName << "):\n" 
+                                  << e.what() << std::endl;
+                    }
+                }
             }
         }
 

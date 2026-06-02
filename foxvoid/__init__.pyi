@@ -257,6 +257,15 @@ class Component:
         __readonly__ = ["current_health", "target_distance"]
     """
 
+    __actions__: List[str]
+    """
+    (Optional) Editor metadata to expose Python methods as clickable buttons at the bottom of the Inspector.
+    Format: ["method_name_1", "method_name_2"]
+
+    Example:
+        __actions__ = ["heal_instantly", "level_up"]
+    """
+
     def __init__(self) -> None: 
         """Initializes the C++ base component memory."""
         ...
