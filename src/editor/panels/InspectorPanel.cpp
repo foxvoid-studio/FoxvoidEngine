@@ -118,15 +118,25 @@ void InspectorPanel::Draw(GameObject*& selectedObject, py::object& selectedAsset
         // Display existing components
         Component* componentToRemove = nullptr;
 
-        for (const auto& comp : selectedObject->GetAllComponents()) {
-            ImGui::PushID(comp.get());
+        // Fetch a reference to the vector
+        const auto& components = selectedObject->GetAllComponents();
+        
+        // Loop by index! This survives vector reallocations triggered by OnInspector()
+        for (size_t i = 0; i < components.size(); ++i) {
+            // Re-fetch the pointer dynamically at every iteration
+            Component* comp = components[i].get();
+            
+            // Safety check in case something went terribly wrong
+            if (!comp) continue;
+
+            ImGui::PushID(comp);
                 
             bool isOpen = ImGui::CollapsingHeader(comp->GetName().c_str(), ImGuiTreeNodeFlags_DefaultOpen);
 
             if (ImGui::BeginPopupContextItem()) {
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
                 if (ImGui::Selectable("Remove Component")) {
-                    componentToRemove = comp.get();
+                    componentToRemove = comp;
                 }
                 ImGui::PopStyleColor();
                 ImGui::EndPopup();
@@ -134,6 +144,17 @@ void InspectorPanel::Draw(GameObject*& selectedObject, py::object& selectedAsset
 
             if (isOpen) {
                 comp->OnInspector();
+                
+                // CRITICAL SAFETY CHECK:
+                // If OnInspector caused an addition (e.g. via __require_components__),
+                // the components vector size changed. If we don't break, our index
+                // will keep going and draw the newly added component immediately, 
+                // which might not be fully initialized or might mess up ImGui state.
+                // Breaking here ends the loop, and the new component will be drawn safely on the next frame.
+                if (components.size() > selectedObject->GetAllComponents().size()) {
+                    ImGui::PopID(); // Clean up ImGui state before breaking
+                    break;
+                }
             }
                 
             ImGui::PopID();

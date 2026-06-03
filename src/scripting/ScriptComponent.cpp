@@ -9,6 +9,7 @@
 
 #include "core/assets/AssetRegistry.hpp"
 #include "scene/GameObject.hpp"
+#include "scene/ComponentRegistry.hpp"
 
 #ifndef STANDALONE_MODE
 #include "editor/EditorUI.hpp"
@@ -334,6 +335,98 @@ void ScriptComponent::OnInspector() {
         }
     } catch (const std::filesystem::filesystem_error& e) {
         std::cerr << "[ScriptComponent] Inspector File system error: " << e.what() << std::endl;
+    }
+
+    // Extraction : Required Components
+    // We use a small struct to hold the class data
+    struct RequiredComp {
+        std::string className;
+        std::string moduleName;
+    };
+
+    std::vector<RequiredComp> requiredComponents;
+        
+    if (py::hasattr(m_instance, "__require_components__")) {
+        try {
+            py::list pyRequired = m_instance.attr("__require_components__");
+            for (auto item : pyRequired) {
+                RequiredComp req;
+                    
+                // Extract the class name (e.g., "Transform2d" or "PlayerController")
+                req.className = py::str(item.attr("__name__"));
+                    
+                // Extract the module name (needed to auto-instantiate Python scripts)
+                if (py::hasattr(item, "__module__")) {
+                    req.moduleName = py::str(item.attr("__module__"));
+                }
+                    
+                requiredComponents.push_back(req);
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[Editor] Error reading __require_components__: " << e.what() << std::endl;
+        }
+    }
+
+    // Render : Missing Components Warning
+    if (!requiredComponents.empty() && this->owner != nullptr) {
+        bool hasMissing = false;
+
+        for (const auto& req : requiredComponents) {
+            bool isAttached = false;
+                
+            // Check if this class is registered as a native C++ component
+            bool isNative = ComponentRegistry::factories.find(req.className) != ComponentRegistry::factories.end();
+
+            if (isNative) {
+                // Use your elegant ComponentRegistry getters to check if it exists!
+                auto it = ComponentRegistry::getters.find(req.className);
+                if (it != ComponentRegistry::getters.end()) {
+                    // Invoke the lambda. If it returns something other than None, it's attached.
+                    py::object comp = it->second(*this->owner);
+                    if (!comp.is_none()) {
+                        isAttached = true;
+                    }
+                }
+            } else {
+                // It's a Python Script. Check the attached ScriptComponents.
+                auto scripts = this->owner->GetComponents<ScriptComponent>();
+                for (auto* script : scripts) {
+                    if (script->m_className == req.className) {
+                        isAttached = true;
+                        break;
+                    }
+                }
+            }
+
+            // If the component is not found on the GameObject, draw the warning UI
+            if (!isAttached) {
+                if (!hasMissing) {
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+                    ImGui::TextWrapped("Missing Required Components:");
+                    ImGui::PopStyleColor();
+                    hasMissing = true;
+                }
+
+                // Create the clickable button to add the missing component
+                std::string buttonLabel = "Add " + req.className;
+                if (ImGui::Button(buttonLabel.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
+                    
+                    if (isNative) {
+                        // Call the C++ factory lambda directly from your registry
+                        ComponentRegistry::factories[req.className](*this->owner);
+                        std::cout << "[Editor] Auto-added Native Component: " << req.className << std::endl;
+                    } else {
+                        // It's a Python Script. Use your legacy constructor.
+                        this->owner->AddComponent<ScriptComponent>(req.moduleName, req.className);
+                        std::cout << "[Editor] Auto-added Script Component: " << req.className << std::endl;
+                    }
+                }
+            }
+        }
+
+        if (hasMissing) {
+            ImGui::Separator();
+        }
     }
 
     // Dynamic Variables Inspection

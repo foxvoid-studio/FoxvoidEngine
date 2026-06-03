@@ -266,6 +266,16 @@ class Component:
         __actions__ = ["heal_instantly", "level_up"]
     """
 
+    __require_components__: List[Type['Component']]
+    """
+    (Optional) Editor metadata to enforce Component dependencies (both Native and Python).
+    If the GameObject is missing any of these components, the Inspector will display an 'Add' button.
+    Format: [ComponentClass1, ComponentClass2]
+
+    Example:
+        __require_components__ = [Transform2d, RigidBody2d, PlayerController]
+    """
+
     def __init__(self) -> None: 
         """Initializes the C++ base component memory."""
         ...
