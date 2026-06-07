@@ -11,7 +11,7 @@ const std::string FOXVOID_PYI_CONTENT = R"(
 # implementation is handled natively in C++.
 
 from enum import Enum
-from typing import TypeVar, Type, Optional, List, overload, Tuple, Dict, Callable, Any
+from typing import TypeVar, Type, Optional, List, overload, Tuple, Dict, Callable, Any, Union
 
 # Type variable for smart autocompletion in the get_component method.
 # It ensures that getting a Transform2d actually returns a Transform2d type in the IDE.
@@ -222,7 +222,7 @@ class Component:
         }
     """
 
-        __tooltips__: Dict[str, str]
+    __tooltips__: Dict[str, str]
     """
     (Optional) Editor metadata to display help text when hovering over variables in the Inspector.
     Format: {"variable_name": "Help text"}
