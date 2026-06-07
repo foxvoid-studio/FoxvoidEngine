@@ -264,14 +264,13 @@ class Component:
         __actions__ = ["heal_instantly", "level_up"]
     """
 
-    __require_components__: List[Type['Component']]
+    __require_components__: List[Union[Type['Component'], List[Type['Component']]]]
     """
-    (Optional) Editor metadata to enforce Component dependencies (both Native and Python).
-    If the GameObject is missing any of these components, the Inspector will display an 'Add' button.
-    Format: [ComponentClass1, ComponentClass2]
-
+    (Optional) Editor metadata to enforce Component dependencies.
+    You can use sublists to create an "OR" condition.
+    
     Example:
-        __require_components__ = [Transform2d, RigidBody2d, PlayerController]
+        __require_components__ = [Transform2d, [RectCollider, CircleCollider]]
     """
 
     def __init__(self) -> None: 
