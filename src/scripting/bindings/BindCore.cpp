@@ -178,7 +178,24 @@ void BindCore(py::module_& m) {
                 return {};
             },
             py::return_value_policy::reference
-        );
+        )
+        .def_static("get_all_objects", []() -> std::vector<GameObject*> {
+            std::vector<GameObject*> rawObjects;
+            
+            if (Engine::Get()) {
+                // Get the read-only reference to the scene's unique_ptrs
+                const auto& uniqueObjects = Engine::Get()->GetActiveScene().GetGameObjects();
+                rawObjects.reserve(uniqueObjects.size());
+                
+                // Convert to raw pointers so Python can reference them safely
+                // without interfering with C++ memory management
+                for (const auto& obj : uniqueObjects) {
+                    rawObjects.push_back(obj.get());
+                }
+            }
+            
+            return rawObjects;
+        }, py::return_value_policy::reference);
 
     py::class_<PersistentComponent, Component>(m, "PersistentComponent")
         .def(py::init<>());

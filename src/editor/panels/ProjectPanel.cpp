@@ -625,7 +625,9 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
                 );
             }
 
-            if (ImGui::BeginPopupContextItem("FileContextMenu")) {
+            std::string popupId = "FileContextMenu###" + entry.path().string();
+            
+            if (ImGui::BeginPopupContextItem(popupId.c_str())) {
                 if (ImGui::MenuItem(ICON_FA_PEN " Rename")) {
                     m_actionTarget = entry.path();
                     strncpy(m_renameBuffer, filename.c_str(), sizeof(m_renameBuffer));

@@ -996,6 +996,22 @@ class Scene:
         """
         ...
 
+    @staticmethod
+    def get_all_objects() -> List[GameObject]:
+        """
+        Retrieves all GameObjects currently present in the active scene.
+        Useful for broad queries or manual spatial checks.
+        
+        Returns:
+            List[GameObject]: A list containing all GameObjects in the scene.
+            
+        Example:
+            all_objs = Scene.get_all_objects()
+            for obj in all_objs:
+                print(obj.name)
+        """
+        ...
+
 
 class Globals:
     """Access global game variables managed in the Editor."""

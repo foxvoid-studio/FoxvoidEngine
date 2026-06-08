@@ -60,24 +60,34 @@ void ScriptComponent::LoadScript(UUID scriptUUID, const std::string& className) 
     m_scriptFilePath = path.string();
 
     if (m_className.empty()) {
-        m_className = m_scriptName;
-        std::ifstream file(m_scriptFilePath);
-        if (file.is_open()) {
-            std::string line;
-            while (std::getline(file, line)) {
-                size_t classPos = line.find("class ");
-                if (classPos != std::string::npos) {
-                    size_t start = classPos + 6;
-                    size_t end = line.find_first_of("(: \r\n", start);
-                    if (end != std::string::npos) {
-                        m_className = line.substr(start, end - start);
-                        break; 
+            m_className = m_scriptName;
+            std::ifstream file(m_scriptFilePath);
+            if (file.is_open()) {
+                std::string line;
+                while (std::getline(file, line)) {
+                    // Find the first character that is not a space or a tab
+                    size_t firstNonSpace = line.find_first_not_of(" \t");
+                    
+                    // Skip empty lines or lines starting with a Python comment
+                    if (firstNonSpace == std::string::npos || line[firstNonSpace] == '#') {
+                        continue;
+                    }
+
+                    // Check if the line strictly begins with the keyword "class "
+                    if (line.compare(firstNonSpace, 6, "class ") == 0) {
+                        size_t start = firstNonSpace + 6;
+                        
+                        // Extract the class name up to the parenthesis, colon, or line end
+                        size_t end = line.find_first_of("(: \r\n", start);
+                        if (end != std::string::npos) {
+                            m_className = line.substr(start, end - start);
+                            break; 
+                        }
                     }
                 }
+                file.close();
             }
-            file.close();
         }
-    }
 
     try {
         py::module_ mod = py::module_::import(m_scriptName.c_str());
