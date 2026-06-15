@@ -1,6 +1,6 @@
 #include "ScriptableObject.hpp"
 #include "scripting/DataManager.hpp"
-#include "core/assets/AssetRegistry.hpp" // Indispensable pour la résolution des UUID
+#include "core/assets/AssetRegistry.hpp"
 #include <iostream>
 #include <map>
 #include <vector>
@@ -82,37 +82,43 @@ void ScriptableObject::OnInspector() {
 
             py::object cls = value.attr("__class__");
             
-            // 1. Analyze if this is an Asset Reference
-            bool isAsset = false;
+            // 1. Universal Type Inference from Annotations
             std::string expectedClass = "";
-
-            if (!value.is_none() && py::hasattr(value, "asset_id")) {
-                isAsset = true;
-                expectedClass = py::str(cls.attr("__name__"));
-            } 
-            else if (value.is_none() && annotations.contains(key.c_str())) {
+            bool expectsAsset = false;
+            
+            if (annotations.contains(key.c_str())) {
                 std::string annStr = py::str(annotations[key.c_str()]);
                 
+                // Clean union syntax (Python 3.10+)
                 size_t pipePos = annStr.find('|');
                 if (pipePos != std::string::npos) annStr = annStr.substr(0, pipePos);
 
+                // Clean bracket syntax (list[X] or Optional[X])
                 size_t startPos = annStr.find('[');
                 size_t endPos = annStr.find(']');
                 if (startPos != std::string::npos && endPos != std::string::npos) {
                     annStr = annStr.substr(startPos + 1, endPos - startPos - 1);
                 }
 
+                // Trim
                 annStr.erase(0, annStr.find_first_not_of(" \t"));
                 annStr.erase(annStr.find_last_not_of(" \t") + 1);
 
+                // Remove module prefix
                 size_t dotPos = annStr.find_last_of('.');
                 if (dotPos != std::string::npos) annStr = annStr.substr(dotPos + 1);
 
                 expectedClass = annStr;
 
-                if (expectedClass != "int" && expectedClass != "float" && expectedClass != "bool" && expectedClass != "str" && expectedClass != "NoneType") {
-                    isAsset = true;
+                if (expectedClass != "int" && expectedClass != "float" && expectedClass != "bool" && expectedClass != "str" && expectedClass != "NoneType" && expectedClass != "list") {
+                    expectsAsset = true;
                 }
+            }
+
+            // Fallback for runtime asset detection if annotations are missing
+            if (!expectsAsset && !value.is_none() && py::hasattr(value, "asset_id")) {
+                expectsAsset = true;
+                expectedClass = py::str(cls.attr("__name__"));
             }
 
             // 2. Enums
@@ -131,8 +137,77 @@ void ScriptableObject::OnInspector() {
                     ImGui::EndCombo();
                 }
             }
-            // 3. Asset Drag & Drop Zone
-            else if (isAsset) {
+            // 3. Lists of Assets
+            else if (py::isinstance<py::list>(value)) {
+                py::list pyList = value.cast<py::list>();
+                
+                std::string headerLabel = key + " (" + expectedClass + " [" + std::to_string(py::len(pyList)) + "])";
+                
+                if (ImGui::TreeNodeEx(headerLabel.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+                    
+                    if (ImGui::Button(("Add Item##" + key).c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
+                        pyList.append(py::none());
+                    }
+
+                    std::vector<int> toRemove;
+
+                    for (size_t i = 0; i < py::len(pyList); ++i) {
+                        ImGui::PushID((key + "_" + std::to_string(i)).c_str());
+                        
+                        py::object listItem = pyList[i];
+                        std::string displayStr = "None";
+                        if (!listItem.is_none() && py::hasattr(listItem, "name")) {
+                            displayStr = py::str(listItem.attr("name"));
+                        }
+
+                        // Align the remove button to the right
+                        float buttonWidth = 30.0f;
+                        float inputWidth = ImGui::GetContentRegionAvail().x - buttonWidth - ImGui::GetStyle().ItemSpacing.x;
+
+                        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.25f, 0.35f, 1.0f));
+                        ImGui::PushItemWidth(inputWidth);
+                        ImGui::InputText("##DropZone", displayStr.data(), displayStr.size(), ImGuiInputTextFlags_ReadOnly);
+                        ImGui::PopItemWidth();
+                        ImGui::PopStyleColor();
+
+                        if (ImGui::BeginDragDropTarget()) {
+                            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+                                std::string droppedPath = (const char*)payload->Data;
+                                if (droppedPath.find(".asset") != std::string::npos) {
+                                    try {
+                                        py::object loadedAsset = DataManager::LoadAsset(droppedPath);
+                                        if (!loadedAsset.is_none()) {
+                                            std::string droppedClass = py::str(loadedAsset.attr("__class__").attr("__name__"));
+                                            if (droppedClass == expectedClass || expectedClass.empty() || expectedClass == "ScriptableObject") {
+                                                UUID assetUUID = AssetRegistry::GetUUIDForPath(droppedPath);
+                                                loadedAsset.attr("__asset_uuid__") = (uint64_t)assetUUID;
+                                                pyList[i] = loadedAsset;
+                                            }
+                                        }
+                                    } catch (...) {}
+                                }
+                            }
+                            ImGui::EndDragDropTarget();
+                        }
+
+                        ImGui::SameLine();
+                        if (ImGui::Button("-", ImVec2(buttonWidth, 0))) {
+                            toRemove.push_back(i);
+                        }
+
+                        ImGui::PopID();
+                    }
+
+                    // Remove backwards to avoid index shifting issues
+                    for (auto it = toRemove.rbegin(); it != toRemove.rend(); ++it) {
+                        pyList.attr("pop")(*it);
+                    }
+
+                    ImGui::TreePop();
+                }
+            }
+            // 4. Single Asset Drag & Drop Zone
+            else if (expectsAsset) {
                 std::string displayStr = "None";
                 if (!value.is_none() && py::hasattr(value, "name")) {
                     displayStr = py::str(value.attr("name")); 
@@ -154,27 +229,18 @@ void ScriptableObject::OnInspector() {
                                     std::string droppedClass = py::str(loadedAsset.attr("__class__").attr("__name__"));
                                     
                                     if (droppedClass == expectedClass || expectedClass.empty() || expectedClass == "ScriptableObject") {
-                                        // Resolution of the UUID through the central registry
                                         UUID assetUUID = AssetRegistry::GetUUIDForPath(droppedPath);
-                                        
-                                        // Store the UUID directly inside the Python object metadata
                                         loadedAsset.attr("__asset_uuid__") = (uint64_t)assetUUID;
-                                        
                                         pyInstance.attr(key.c_str()) = loadedAsset;
-                                        std::cout << "[Editor] Linked Asset: " << droppedClass << " (UUID: " << (uint64_t)assetUUID << ")" << std::endl;
-                                    } else {
-                                        std::cerr << "[Editor] Asset Type mismatch! Expected " << expectedClass << std::endl;
                                     }
                                 }
-                            } catch (const std::exception& e) {
-                                std::cerr << "[Editor] Failed to load dropped asset: " << e.what() << std::endl;
-                            }
+                            } catch (...) {}
                         }
                     }
                     ImGui::EndDragDropTarget();
                 }
             }
-            // 4. Floats
+            // 5. Floats
             else if (py::isinstance<py::float_>(value)) {
                 float v = value.cast<float>();
                 float min = 0.0f, max = 0.0f;
@@ -186,12 +252,12 @@ void ScriptableObject::OnInspector() {
                     pyInstance.attr(key.c_str()) = v;
                 }
             }
-            // 5. Booleans
+            // 6. Booleans
             else if (py::isinstance<py::bool_>(value)) {
                 bool v = value.cast<bool>();
                 if (ImGui::Checkbox(key.c_str(), &v)) pyInstance.attr(key.c_str()) = v;
             }
-            // 6. Integers
+            // 7. Integers
             else if (py::isinstance<py::int_>(value)) {
                 int v = value.cast<int>();
                 int min = 0, max = 0;
@@ -203,7 +269,7 @@ void ScriptableObject::OnInspector() {
                     pyInstance.attr(key.c_str()) = v;
                 }
             }
-            // 7. Strings
+            // 8. Strings
             else if (py::isinstance<py::str>(value)) {
                 std::string v = value.cast<std::string>();
                 char buffer[2048];
@@ -325,7 +391,32 @@ nlohmann::json ScriptableObject::Serialize() const {
 
                 py::object value = py::reinterpret_borrow<py::object>(item.second);
                 
-                // --- Save Asset References via UUID ---
+                // --- Save Lists of Assets ---
+                if (py::isinstance<py::list>(value)) {
+                    py::list pyList = value.cast<py::list>();
+                    nlohmann::json jsonArray = nlohmann::json::array();
+                    
+                    for (size_t i = 0; i < py::len(pyList); ++i) {
+                        py::object listItem = pyList[i];
+                        if (!listItem.is_none() && py::hasattr(listItem, "asset_id")) {
+                            nlohmann::json assetRef;
+                            assetRef["__is_asset__"] = true;
+                            assetRef["assetId"] = py::str(listItem.attr("asset_id")).cast<std::string>();
+                            if (py::hasattr(listItem, "__asset_uuid__")) {
+                                assetRef["assetUUID"] = listItem.attr("__asset_uuid__").cast<uint64_t>();
+                            } else {
+                                assetRef["assetUUID"] = 0;
+                            }
+                            jsonArray.push_back(assetRef);
+                        } else {
+                            jsonArray.push_back(nullptr); // Preserve list indices for empty slots
+                        }
+                    }
+                    properties[key] = jsonArray;
+                    continue;
+                }
+
+                // --- Save Single Asset References ---
                 if (!value.is_none() && py::hasattr(value, "asset_id")) {
                     nlohmann::json assetRef;
                     assetRef["__is_asset__"] = true;
@@ -372,17 +463,47 @@ void ScriptableObject::Deserialize(const nlohmann::json& j) {
             for (auto& el : props.items()) {
                 std::string key = el.key();
                 
-                // --- Restore Asset References via UUID ---
+                // --- Restore Lists of Assets ---
+                if (el.value().is_array()) {
+                    py::list pyList;
+                    for (const auto& itemJson : el.value()) {
+                        if (itemJson.is_object() && itemJson.contains("__is_asset__")) {
+                            uint64_t savedUUID = itemJson.value("assetUUID", 0ULL);
+                            std::string resolvedPath = "";
+                            
+                            if (savedUUID != 0) resolvedPath = AssetRegistry::GetPathForUUID(savedUUID).string();
+                            else if (itemJson.contains("path")) resolvedPath = itemJson.value("path", "");
+
+                            if (!resolvedPath.empty()) {
+                                try {
+                                    py::object loadedAsset = DataManager::LoadAsset(resolvedPath);
+                                    if (!loadedAsset.is_none()) {
+                                        if (savedUUID == 0) savedUUID = AssetRegistry::GetUUIDForPath(resolvedPath);
+                                        loadedAsset.attr("__asset_uuid__") = savedUUID;
+                                        pyList.append(loadedAsset);
+                                    } else {
+                                        pyList.append(py::none());
+                                    }
+                                } catch (...) { pyList.append(py::none()); }
+                            } else {
+                                pyList.append(py::none());
+                            }
+                        } else {
+                            pyList.append(py::none());
+                        }
+                    }
+                    pyInstance.attr(key.c_str()) = pyList;
+                    continue;
+                }
+
+                // --- Restore Single Asset References ---
                 if (el.value().is_object() && el.value().contains("__is_asset__")) {
                     uint64_t savedUUID = el.value().value("assetUUID", 0ULL);
                     std::string resolvedPath = "";
                     
-                    // Priorité au UUID pour trouver le fichier, peu importe où il a été déplacé
                     if (savedUUID != 0) {
                         resolvedPath = AssetRegistry::GetPathForUUID(savedUUID).string();
-                    } 
-                    // Fallback de sécurité si le UUID est introuvable ou si le fichier est un ancien format
-                    else if (el.value().contains("path")) {
+                    } else if (el.value().contains("path")) {
                         resolvedPath = el.value().value("path", "");
                     }
 
@@ -390,16 +511,11 @@ void ScriptableObject::Deserialize(const nlohmann::json& j) {
                         try {
                             py::object loadedAsset = DataManager::LoadAsset(resolvedPath);
                             if (!loadedAsset.is_none()) {
-                                // On s'assure de conserver le UUID sur l'objet pour la prochaine sauvegarde
-                                if (savedUUID == 0) {
-                                    savedUUID = AssetRegistry::GetUUIDForPath(resolvedPath);
-                                }
+                                if (savedUUID == 0) savedUUID = AssetRegistry::GetUUIDForPath(resolvedPath);
                                 loadedAsset.attr("__asset_uuid__") = savedUUID;
                                 pyInstance.attr(key.c_str()) = loadedAsset;
                             }
-                        } catch (...) {
-                            std::cerr << "[Editor] Warning: Missing linked asset at " << resolvedPath << std::endl;
-                        }
+                        } catch (...) {}
                     }
                     continue;
                 }
