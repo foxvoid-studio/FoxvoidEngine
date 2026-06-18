@@ -13,15 +13,18 @@ class VBoxContainer : public Component {
         float paddingTop;
         float paddingBottom;
 
-        // Forces the horizontal alignement of children.
+        // Forces the horizontal alignment of children.
         // 0.0 = Left, 0.5 = Center, 1.0 = Right
         float horizontalAlignment;
 
         VBoxContainer();
         ~VBoxContainer() override = default;
 
-        // Called every frame to calculate and enforce the layout of children
+        // Called every frame at runtime to dynamically adapt to any UI changes
         void Update(float deltaTime) override;
+
+        // Forces the container to recalculate its children's positions immediately
+        void RebuildLayout();
 
         std::string GetName() const override;
 

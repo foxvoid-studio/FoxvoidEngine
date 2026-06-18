@@ -12,34 +12,59 @@ VBoxContainer::VBoxContainer()
     : spacing(10.0f), paddingTop(10.0f), paddingBottom(10.0f), horizontalAlignment(0.5f) {}
 
 void VBoxContainer::Update(float deltaTime) {
+    // At runtime, we rebuild the layout every frame to dynamically adapt to any UI changes
+    RebuildLayout();
+}
+
+void VBoxContainer::RebuildLayout() {
     if (!owner) return;
 
-    // Start placing children below the top padding margin
-    float currentY = paddingTop;
+    // Retrieve our own RectTransform component to handle automatic resizing of the container
+    RectTransform* myRect = owner->GetComponent<RectTransform>();
 
-    // Retrieve all child GameObjects directly from the owner's hierarchy
+    // Start positioning children after the top padding margin
+    float currentY = paddingTop;
+    float maxWidth = 0.0f;
+
+    // Fetch all immediate child GameObjects belonging to this container
     const auto& children = owner->GetChildren(); 
     
     for (GameObject* child : children) {
-        // Only attempt to lay out children that possess a UI spatial component
+        // Skip inactive children to prevent leaving empty spaces or holes in the visual layout
+        if (!child->IsActiveInHierarchy()) continue;
+
         if (RectTransform* childRect = child->GetComponent<RectTransform>()) {
             
-            // 1. Force the anchor to the top (0.0f on Y).
-            // The X axis is driven by the horizontalAlignment variable.
+            // Force the child's anchor and pivot to the top edge alignment
+            // The X-axis anchor/pivot is strictly bound to the horizontalAlignment configuration
             childRect->anchor = { horizontalAlignment, 0.0f };
-            
-            // 2. Force the pivot to match the anchor so the position offset 
-            // works predictably (e.g., from top-center to top-center).
             childRect->pivot = { horizontalAlignment, 0.0f };
             
-            // 3. Set the definitive local coordinates.
-            // X is 0 because the alignment is entirely handled by the anchor/pivot.
+            // Assign the definitive local coordinates computed by the layout system
             childRect->position.x = 0.0f; 
             childRect->position.y = currentY; 
             
-            // 4. Advance the cursor for the next iteration, accounting for
-            // the current child's height plus the requested spacing between items.
+            // Push the cursor downward for the next child element, accounting for size and gap spacing
             currentY += childRect->size.y + spacing;
+
+            // Track the maximum width among all elements to adjust the parent container later
+            if (childRect->size.x > maxWidth) {
+                maxWidth = childRect->size.x;
+            }
+        }
+    }
+
+    // Strip the trailing spacing added by the last element, then add the bottom padding margin
+    if (!children.empty()) {
+        currentY -= spacing;
+    }
+    currentY += paddingBottom;
+
+    // AUTO-SIZING FEATURE: Force the parent container to perfectly bound and wrap its calculated content
+    if (myRect) {
+        myRect->size.y = currentY;
+        if (maxWidth > 0.0f) {
+            myRect->size.x = maxWidth;
         }
     }
 }
@@ -60,6 +85,11 @@ void VBoxContainer::OnInspector() {
         if (ImGui::IsItemDeactivatedAfterEdit()) {
             CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
         }
+        
+        // Rebuild the layout in real-time while dragging sliders in the editor
+        if (ImGui::IsItemActive() || ImGui::IsItemDeactivatedAfterEdit()) {
+            RebuildLayout();
+        }
     };
 
     ImGui::TextDisabled("Auto-aligns child RectTransforms vertically");
@@ -79,6 +109,13 @@ void VBoxContainer::OnInspector() {
         ImGui::SetTooltip("0.0 = Left, 0.5 = Center, 1.0 = Right");
     }
     HandleUndoRedo();
+
+    ImGui::Separator();
+
+    // Manual override button for the editor
+    if (ImGui::Button("Force Rebuild Layout", ImVec2(-1, 0))) {
+        RebuildLayout();
+    }
 }
 #endif
 

@@ -12,34 +12,58 @@ HBoxContainer::HBoxContainer()
     : spacing(10.0f), paddingLeft(10.0f), paddingRight(10.0f), verticalAlignment(0.5f) {}
 
 void HBoxContainer::Update(float deltaTime) {
+    // At runtime, we rebuild the layout every frame to dynamically adapt to any UI changes
+    RebuildLayout();
+}
+
+void HBoxContainer::RebuildLayout() {
     if (!owner) return;
 
-    // Start placing children after the left padding margin
-    float currentX = paddingLeft;
+    // Retrieve our own RectTransform component to handle automatic resizing of the container
+    RectTransform* myRect = owner->GetComponent<RectTransform>();
 
-    // Retrieve all child GameObjects directly from the owner's hierarchy
+    // Start positioning children after the left padding margin
+    float currentX = paddingLeft;
+    float maxHeight = 0.0f;
+
+    // Fetch all immediate child GameObjects belonging to this container
     const auto& children = owner->GetChildren(); 
     
     for (GameObject* child : children) {
-        // Only attempt to lay out children that possess a UI spatial component
+        // Skip inactive children to prevent leaving empty spaces or holes in the visual layout
+        if (!child->IsActiveInHierarchy()) continue;
+
         if (RectTransform* childRect = child->GetComponent<RectTransform>()) {
-            
-            // 1. Force the anchor to the left (0.0f on X).
-            // The Y axis is driven by the verticalAlignment variable.
+            // Force the child's anchor and pivot to the center-left or specified edge alignment
+            // The Y-axis anchor/pivot is strictly bound to the verticalAlignment configuration
             childRect->anchor = { 0.0f, verticalAlignment };
-            
-            // 2. Force the pivot to match the anchor so the position offset 
-            // works predictably (e.g., from center-left to center-left).
             childRect->pivot = { 0.0f, verticalAlignment };
             
-            // 3. Set the definitive local coordinates.
-            // Y is 0 because the alignment is entirely handled by the anchor/pivot.
+            // Assign the definitive local coordinates computed by the layout system
             childRect->position.x = currentX; 
             childRect->position.y = 0.0f; 
             
-            // 4. Advance the cursor for the next iteration, accounting for
-            // the current child's width plus the requested spacing between items.
+            // Push the cursor forward for the next child element, accounting for size and gap spacing
             currentX += childRect->size.x + spacing;
+
+            // Track the maximum height among all elements to adjust the parent container later
+            if (childRect->size.y > maxHeight) {
+                maxHeight = childRect->size.y;
+            }
+        }
+    }
+
+    // Strip the trailing spacing added by the last element, then add the right padding margin
+    if (!children.empty()) {
+        currentX -= spacing;
+    }
+    currentX += paddingRight;
+
+    // AUTO-SIZING FEATURE: Force the parent container to perfectly bound and wrap its calculated content
+    if (myRect) {
+        myRect->size.x = currentX;
+        if (maxHeight > 0.0f) {
+            myRect->size.y = maxHeight;
         }
     }
 }
@@ -60,6 +84,10 @@ void HBoxContainer::OnInspector() {
         if (ImGui::IsItemDeactivatedAfterEdit()) {
             CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
         }
+
+        if (ImGui::IsItemActive() || ImGui::IsItemDeactivatedAfterEdit()) {
+            RebuildLayout();
+        }
     };
 
     ImGui::TextDisabled("Auto-aligns child RectTransforms horizontally");
@@ -79,6 +107,11 @@ void HBoxContainer::OnInspector() {
         ImGui::SetTooltip("0.0 = Top, 0.5 = Center, 1.0 = Bottom");
     }
     HandleUndoRedo();
+
+    ImGui::Separator();
+    if (ImGui::Button("Force Rebuild Layout", ImVec2(-1, 0))) {
+        RebuildLayout();
+    }
 }
 #endif
 

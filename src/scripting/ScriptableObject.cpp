@@ -89,6 +89,13 @@ void ScriptableObject::OnInspector() {
             if (annotations.contains(key.c_str())) {
                 std::string annStr = py::str(annotations[key.c_str()]);
                 
+                std::string classPrefix = "<class '";
+                if (annStr.find(classPrefix) == 0) {
+                    annStr = annStr.substr(classPrefix.length());
+                    if (!annStr.empty() && annStr.back() == '>') annStr.pop_back();
+                    if (!annStr.empty() && annStr.back() == '\'') annStr.pop_back();
+                }
+
                 // Clean union syntax (Python 3.10+)
                 size_t pipePos = annStr.find('|');
                 if (pipePos != std::string::npos) annStr = annStr.substr(0, pipePos);

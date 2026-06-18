@@ -23,6 +23,9 @@ class HBoxContainer : public Component {
         // Called every frame to calculate and enforce the horizontal layout
         void Update(float deltaTime) override;
 
+        // Forces the container to recalculate its children's positions immediately
+        void RebuildLayout();
+
         std::string GetName() const override;
 
 #ifndef STANDALONE_MODE
