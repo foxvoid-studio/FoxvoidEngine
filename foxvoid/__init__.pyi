@@ -76,6 +76,10 @@ class GameObject:
         """Returns a list of all direct children attached to this object."""
         ...
 
+    def get_child_by_name(self) -> Optional['GameObject']:
+        """Recursively searches for a child GameObject by its name."""
+        ...
+
     """Represents an entity within the engine's scene."""
     @staticmethod
     def spawn(name: str) -> GameObject:
@@ -529,6 +533,18 @@ class SpriteRenderer(Component):
     @property
     def height(self) -> float: ...
 
+    def set_tint(self, r: int, g: int, b: int, a: int = 255) -> None:
+        """Sets the RGBA multiplication tint color for the sprite rendering."""
+        ...
+        
+    def set_opacity(self, alpha: float) -> None:
+        """Sets the transparency of the sprite (0.0 to 1.0)."""
+        ...
+        
+    def set_visible(self, visible: bool) -> None:
+        """Shows or hides the sprite."""
+        ...
+
 
 class SpriteSheetRenderer(Component):
     """Renders a specific frame from a grid-based spritesheet texture."""
@@ -555,6 +571,30 @@ class SpriteSheetRenderer(Component):
     @property
     def frame_count(self) -> int:
         """Total number of frames in the spritesheet (Read-only)."""
+        ...
+
+    def set_tint(self, r: int, g: int, b: int, a: int = 255) -> None:
+        """
+        Sets the RGBA multiplication tint color for the sprite rendering.
+        Values must be between 0 and 255.
+        Default is pure white (255, 255, 255, 255), meaning no alteration.
+        """
+        ...
+        
+    def set_opacity(self, alpha: float) -> None:
+        """
+        Quickly modifies the transparency of the sprite.
+        
+        Args:
+            alpha: A float between 0.0 (fully transparent) and 1.0 (fully opaque).
+        """
+        ...
+        
+    def set_visible(self, visible: bool) -> None:
+        """
+        Instantly toggles the rendering of this sprite on or off 
+        without destroying the GameObject.
+        """
         ...
 
 

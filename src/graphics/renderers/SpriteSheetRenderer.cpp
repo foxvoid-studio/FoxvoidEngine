@@ -52,6 +52,19 @@ void SpriteSheetRenderer::SetTexture(UUID uuid) {
     }
 }
 
+// Adds the requested tint color
+void SpriteSheetRenderer::SetTint(unsigned char r, unsigned char g, unsigned char b, unsigned char a) {
+    m_tint = { r, g, b, a };
+}
+
+// Quickly modifies only the alpha channel, keeping the RGB values intact
+void SpriteSheetRenderer::SetOpacity(float alpha) {
+    // Clamp between 0.0 and 1.0, then convert to 0-255 byte
+    if (alpha < 0.0f) alpha = 0.0f;
+    if (alpha > 1.0f) alpha = 1.0f;
+    m_tint.a = static_cast<unsigned char>(alpha * 255.0f);
+}
+
 void SpriteSheetRenderer::Start() {
     m_transform = owner->GetComponent<Transform2d>();
     if (!m_transform) {
@@ -90,32 +103,33 @@ Rectangle SpriteSheetRenderer::GetSourceRec() const {
 }
 
 void SpriteSheetRenderer::Render() {
-    if (m_transform) {
-        // Source Rectangle: The specific frame from the spritesheet
-        Rectangle sourceRec = GetSourceRec();
+    // Early exit if the component is disabled or the sprite is set to invisible
+    if (!m_isVisible || !m_transform) return;
 
-        // Destination Rectangle: Position and scaled size of that single frame
-        auto position = m_transform->GetGlobalPosition();
-        Rectangle destRec = {
-            position.x,
-            position.y,
-            sourceRec.width * m_transform->scale.x,
-            sourceRec.height * m_transform->scale.y
-        };
+    // Source Rectangle: The specific frame from the spritesheet
+    Rectangle sourceRec = GetSourceRec();
 
-        // Origin: Center of the scaled frame
-        Vector2 origin = { destRec.width / 2.0f, destRec.height / 2.0f };
+    // Destination Rectangle: Position and scaled size of that single frame
+    auto position = m_transform->GetGlobalPosition();
+    Rectangle destRec = {
+        position.x,
+        position.y,
+        sourceRec.width * m_transform->scale.x,
+        sourceRec.height * m_transform->scale.y
+    };
 
-        // Make a temporary copy of the source rectangle for this specific frame
-        Rectangle drawRec = sourceRec;
+    // Origin: Center of the scaled frame
+    Vector2 origin = { destRec.width / 2.0f, destRec.height / 2.0f };
 
-        // Force the absolute value, then apply the flip sign
-        drawRec.width = std::abs(drawRec.width) * (flipX ? -1.0f : 1.0f);
-        drawRec.height = std::abs(drawRec.height) * (flipY ? -1.0f : 1.0f);
+    // Make a temporary copy of the source rectangle for this specific frame
+    Rectangle drawRec = sourceRec;
 
-        // Draw with full transform support
-        DrawTexturePro(m_texture, drawRec, destRec, origin, m_transform->rotation, WHITE);
-    }
+    // Force the absolute value, then apply the flip sign
+    drawRec.width = std::abs(drawRec.width) * (flipX ? -1.0f : 1.0f);
+    drawRec.height = std::abs(drawRec.height) * (flipY ? -1.0f : 1.0f);
+
+    // Draw with full transform support
+    DrawTexturePro(m_texture, drawRec, destRec, origin, m_transform->rotation, m_tint);
 }
 
 std::string SpriteSheetRenderer::GetName() const {
@@ -180,6 +194,32 @@ void SpriteSheetRenderer::OnInspector() {
     if (m_texture.id != 0) {
         ImGui::TextDisabled("UUID: %llu", (uint64_t)m_textureUUID);
     }
+
+    ImGui::Separator();
+
+    // Visibility Checkbox
+    bool visible = m_isVisible;
+    if (ImGui::Checkbox("Visible", &visible)) {
+        nlohmann::json initialState = Serialize();
+        m_isVisible = visible;
+        CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+    }
+
+    // Color Picker (Converts Raylib 0-255 to ImGui 0.0-1.0 floats)
+    float color[4] = { m_tint.r / 255.0f, m_tint.g / 255.0f, m_tint.b / 255.0f, m_tint.a / 255.0f };
+    if (ImGui::ColorEdit4("Tint Color", color)) {
+        nlohmann::json initialState = Serialize();
+        m_tint.r = static_cast<unsigned char>(color[0] * 255.0f);
+        m_tint.g = static_cast<unsigned char>(color[1] * 255.0f);
+        m_tint.b = static_cast<unsigned char>(color[2] * 255.0f);
+        m_tint.a = static_cast<unsigned char>(color[3] * 255.0f);
+        
+        // Note: ColorEdit4 updates every frame while dragging, which floods the Undo history. 
+        // If ImGui::IsItemDeactivatedAfterEdit() is true, that's usually the best time to save the command!
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+             CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+        }
+    }
 }
 #endif
 
@@ -188,7 +228,9 @@ nlohmann::json SpriteSheetRenderer::Serialize() const {
         {"type", "SpriteSheetRenderer"},
         {"textureUUID", (uint64_t)m_textureUUID},
         {"columns", m_columns},
-        {"rows", m_rows}
+        {"rows", m_rows},
+        {"isVisible", m_isVisible},
+        {"tint", {m_tint.r, m_tint.g, m_tint.b, m_tint.a}}
     };
 }
 
@@ -203,5 +245,14 @@ void SpriteSheetRenderer::Deserialize(const nlohmann::json& j) {
     } 
     else if (j.contains("texturePath")) {
         SetTexture(j["texturePath"].get<std::string>());
+    }
+
+    m_isVisible = j.value("isVisible", true); // Default to true if not found
+    
+    if (j.contains("tint") && j["tint"].is_array() && j["tint"].size() == 4) {
+        m_tint.r = j["tint"][0].get<unsigned char>();
+        m_tint.g = j["tint"][1].get<unsigned char>();
+        m_tint.b = j["tint"][2].get<unsigned char>();
+        m_tint.a = j["tint"][3].get<unsigned char>();
     }
 }

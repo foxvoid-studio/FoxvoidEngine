@@ -67,6 +67,29 @@ class GameObject {
         // Returns the list of children
         const std::vector<GameObject*>& GetChildren() const { return children; }
 
+        // Recursively searches for a child GameObject by its exact name
+        GameObject* GetChildByName(const std::string& targetName) {
+            // Step 1: Check direct children first for optimal performance
+            for (GameObject* child : children) {
+                if (child != nullptr && child->name == targetName) {
+                    return child;
+                }
+            }
+
+            // Step 2: If not found, recursively search deeper in the hierarchy
+            for (GameObject* child : children) {
+                if (child != nullptr) {
+                    GameObject* found = child->GetChildByName(targetName);
+                    if (found != nullptr) {
+                        return found;
+                    }
+                }
+            }
+
+            // Return nullptr if the child doesn't exist in this branch
+            return nullptr;
+        }
+
         // Internal helper to add a child (usually called by SetParent)
         void AddChild(GameObject* child);
 

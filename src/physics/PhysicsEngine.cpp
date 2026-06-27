@@ -13,6 +13,7 @@
 #include "physics/SpatialHashGrid.hpp"
 
 // Initialize global gravity (981 pixels/sec² pointing down)
+// TODO: Allow game developers to modify this gravity value from editor, and add it to the Project Settings (or new other file for global values)
 Vector2 PhysicsEngine::GlobalGravity = { 0.0f, 981.0f };
 
 void PhysicsEngine::Update(Scene& scene, float deltaTime) {
@@ -175,29 +176,44 @@ bool PhysicsEngine::ResolveCollision(GameObject* objA, GameObject* objB, Vector2
         outNormalA = {-normal.x, -normal.y};
         outNormalB = normal;
 
-        // If the normal pushes upwards (negative Y in Raylib), we are touching the ground
-        if (normal.y < -0.5f && rbA) rbA->isGrounded = true;
-        if (normal.y > 0.5f && rbB) rbB->isGrounded = true;
+        // Check the push direction (outNormal) instead of the raw MTV direction
+        // In Raylib, negative Y is upwards. If outNormal pushes the object UP, it's grounded.
+        if (outNormalA.y < -0.5f && rbA) rbA->isGrounded = true;
+        if (outNormalB.y < -0.5f && rbB) rbB->isGrounded = true;
 
         Vector2 posA = tA->GetGlobalPosition();
         Vector2 posB = tB->GetGlobalPosition();
 
         if (!isKinematicA && isKinematicB) {
             tA->SetGlobalPosition(Vector2Subtract(posA, mtv));
-            // For now, we kill all velocity on impact. 
-            // Later, we can do a proper projection of the velocity vector along the wall!
-            if (rbA) { rbA->velocity.x = 0; rbA->velocity.y = 0; }
+            
+            // Axis-dependent velocity cancellation to avoid sticking to walls
+            if (rbA) { 
+                if (std::abs(outNormalA.x) > 0.5f) rbA->velocity.x = 0;
+                if (std::abs(outNormalA.y) > 0.5f) rbA->velocity.y = 0;
+            }
         } 
         else if (isKinematicA && !isKinematicB) {
             tB->SetGlobalPosition(Vector2Add(posB, mtv));
-            if (rbB) { rbB->velocity.x = 0; rbB->velocity.y = 0; }
+            
+            if (rbB) { 
+                if (std::abs(outNormalB.x) > 0.5f) rbB->velocity.x = 0;
+                if (std::abs(outNormalB.y) > 0.5f) rbB->velocity.y = 0;
+            }
         } 
         else {
             // Split mass: push both objects away from each other equally
             tA->SetGlobalPosition(Vector2Subtract(posA, {mtv.x * 0.5f, mtv.y * 0.5f}));
             tB->SetGlobalPosition(Vector2Add(posB, {mtv.x * 0.5f, mtv.y * 0.5f}));
-            if (rbA) { rbA->velocity.x = 0; rbA->velocity.y = 0; }
-            if (rbB) { rbB->velocity.x = 0; rbB->velocity.y = 0; }
+            
+            if (rbA) { 
+                if (std::abs(outNormalA.x) > 0.5f) rbA->velocity.x = 0;
+                if (std::abs(outNormalA.y) > 0.5f) rbA->velocity.y = 0;
+            }
+            if (rbB) { 
+                if (std::abs(outNormalB.x) > 0.5f) rbB->velocity.x = 0;
+                if (std::abs(outNormalB.y) > 0.5f) rbB->velocity.y = 0;
+            }
         }
 
         return true;
@@ -245,14 +261,15 @@ bool PhysicsEngine::ResolveTileCollision(GameObject* obj, const Rectangle& tileR
         Vector2 normal = Vector2Normalize(mtv);
         outNormal = {-normal.x, -normal.y};
 
-        if (normal.y < -0.5f) rb->isGrounded = true;
+        // Check outNormal instead of normal
+        if (outNormal.y < -0.5f) rb->isGrounded = true;
 
         Vector2 pos = t->GetGlobalPosition();
         t->SetGlobalPosition(Vector2Subtract(pos, mtv));
         
         // Basic velocity cancellation depending on the hit axis
-        if (std::abs(normal.x) > 0.5f) rb->velocity.x = 0;
-        if (std::abs(normal.y) > 0.5f) rb->velocity.y = 0;
+        if (std::abs(outNormal.x) > 0.5f) rb->velocity.x = 0;
+        if (std::abs(outNormal.y) > 0.5f) rb->velocity.y = 0;
 
         return true;
     }

@@ -56,6 +56,16 @@ void SpriteRenderer::SetTexture(UUID uuid) {
     }
 }
 
+void SpriteRenderer::SetTint(unsigned char r, unsigned char g, unsigned char b, unsigned char a) {
+    m_tint = { r, g, b, a };
+}
+
+void SpriteRenderer::SetOpacity(float alpha) {
+    if (alpha < 0.0f) alpha = 0.0f;
+    if (alpha > 1.0f) alpha = 1.0f;
+    m_tint.a = static_cast<unsigned char>(alpha * 255.0f);
+}
+
 void SpriteRenderer::Start() {
     // Cache the Transform2d so we don't have to search for it every single frame
     m_transform = owner->GetComponent<Transform2d>();
@@ -66,25 +76,26 @@ void SpriteRenderer::Start() {
 }
 
 void SpriteRenderer::Render() {
-    if (m_transform) {
-        // Source Rectangle: The entire texture
-        Rectangle sourceRec = { 0.0f, 0.0f, (float)m_texture.width, (float)m_texture.height };
+    // Early exit if the component is disabled or the sprite is invisible
+    if (!m_isVisible || !m_transform) return;
+
+    // Source Rectangle: The entire texture
+    Rectangle sourceRec = { 0.0f, 0.0f, (float)m_texture.width, (float)m_texture.height };
     
-        // Destination Rectangle: Position and scaled size
-        auto position = m_transform->GetGlobalPosition();
-        Rectangle destRec = {
-            position.x,
-            position.y,
-            m_texture.width * m_transform->scale.x,
-            m_texture.height * m_transform->scale.y
-        };
+    // Destination Rectangle: Position and scaled size
+    auto position = m_transform->GetGlobalPosition();
+    Rectangle destRec = {
+        position.x,
+        position.y,
+        m_texture.width * m_transform->scale.x,
+        m_texture.height * m_transform->scale.y
+    };
 
-        // Origin: Center of the scaled texture for correct rotation
-        Vector2 origin = { destRec.width / 2.0f, destRec.height / 2.0f };
+    // Origin: Center of the scaled texture for correct rotation
+    Vector2 origin = { destRec.width / 2.0f, destRec.height / 2.0f };
 
-        // 4. Draw with full transform support
-        DrawTexturePro(m_texture, sourceRec, destRec, origin, m_transform->rotation, WHITE);
-    }
+    // 4. Draw with full transform support and the tint color
+    DrawTexturePro(m_texture, sourceRec, destRec, origin, m_transform->rotation, m_tint);
 }
 
 std::string SpriteRenderer::GetName() const {
@@ -138,13 +149,39 @@ void SpriteRenderer::OnInspector() {
     } else {
         ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No texture loaded!");
     }
+
+    ImGui::Separator();
+    
+    // Visibility Checkbox
+    bool visible = m_isVisible;
+    if (ImGui::Checkbox("Visible", &visible)) {
+        nlohmann::json initialState = Serialize();
+        m_isVisible = visible;
+        CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+    }
+
+    // Color Picker
+    float color[4] = { m_tint.r / 255.0f, m_tint.g / 255.0f, m_tint.b / 255.0f, m_tint.a / 255.0f };
+    if (ImGui::ColorEdit4("Tint Color", color)) {
+        nlohmann::json initialState = Serialize();
+        m_tint.r = static_cast<unsigned char>(color[0] * 255.0f);
+        m_tint.g = static_cast<unsigned char>(color[1] * 255.0f);
+        m_tint.b = static_cast<unsigned char>(color[2] * 255.0f);
+        m_tint.a = static_cast<unsigned char>(color[3] * 255.0f);
+        
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+             CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
+        }
+    }
 }
 #endif
 
 nlohmann::json SpriteRenderer::Serialize() const {
     return {
         {"type", "SpriteRenderer"},
-        {"textureUUID", (uint64_t)m_textureUUID}
+        {"textureUUID", (uint64_t)m_textureUUID},
+        {"isVisible", m_isVisible},
+        {"tint", {m_tint.r, m_tint.g, m_tint.b, m_tint.a}}
     };
 }
 
@@ -155,5 +192,14 @@ void SpriteRenderer::Deserialize(const nlohmann::json& j) {
     } 
     else if (j.contains("texturePath")) {
         SetTexture(j["texturePath"].get<std::string>());
+    }
+
+    m_isVisible = j.value("isVisible", true);
+    
+    if (j.contains("tint") && j["tint"].is_array() && j["tint"].size() == 4) {
+        m_tint.r = j["tint"][0].get<unsigned char>();
+        m_tint.g = j["tint"][1].get<unsigned char>();
+        m_tint.b = j["tint"][2].get<unsigned char>();
+        m_tint.a = j["tint"][3].get<unsigned char>();
     }
 }

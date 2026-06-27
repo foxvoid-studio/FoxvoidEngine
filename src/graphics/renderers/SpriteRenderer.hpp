@@ -4,6 +4,7 @@
 #include "core/utils/UUID.hpp"
 #include <string>
 #include <raylib.h>
+#include <nlohmann/json.hpp>
 
 class Transform2d; // Forward declaration to avoid circular includes
 
@@ -27,6 +28,12 @@ class SpriteRenderer : public Component {
         float GetWidth() const { return m_texture.width; }
         float GetHeight() const { return m_texture.height; }
 
+        // Visual properties
+        void SetTint(unsigned char r, unsigned char g, unsigned char b, unsigned char a = 255);
+        void SetOpacity(float alpha);
+        void SetVisible(bool visible) { m_isVisible = visible; }
+        bool IsVisible() const { return m_isVisible; }
+
         // Editor UI and Serialization
         std::string GetName() const override;
 
@@ -45,4 +52,8 @@ class SpriteRenderer : public Component {
 
         // Cached pointer to the transform for fast position reading every frame
         Transform2d* m_transform;
+
+        // Internal Visual State
+        Color m_tint = WHITE;
+        bool m_isVisible = true;
 };

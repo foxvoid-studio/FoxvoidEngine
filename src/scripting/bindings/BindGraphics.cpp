@@ -25,7 +25,16 @@ void BindGraphics(py::module_& m) {
     py::class_<SpriteRenderer, Component>(m, "SpriteRenderer")
         .def(py::init<std::string>())
         .def_property_readonly("width", &SpriteRenderer::GetWidth)
-        .def_property_readonly("height", &SpriteRenderer::GetHeight);
+        .def_property_readonly("height", &SpriteRenderer::GetHeight)
+        .def("set_tint", &SpriteRenderer::SetTint, 
+            py::arg("r"), py::arg("g"), py::arg("b"), py::arg("a") = 255,
+            "Sets the RGBA tint color (0-255).")
+        .def("set_opacity", &SpriteRenderer::SetOpacity, 
+            py::arg("alpha"),
+            "Sets the transparency of the sprite (0.0 to 1.0).")
+        .def("set_visible", &SpriteRenderer::SetVisible, 
+            py::arg("visible"),
+            "Shows or hides the sprite.");
 
     ComponentRegistry::Register<SpriteRenderer>("SpriteRenderer", 
         [](GameObject& go, py::args args) -> py::object {
@@ -44,7 +53,16 @@ void BindGraphics(py::module_& m) {
         // We bind GetFrame and SetFrame to a clean Python property '.frame'
         .def_property("frame", &SpriteSheetRenderer::GetFrame, &SpriteSheetRenderer::SetFrame)
         // Read-only property for the total frame count
-        .def_property_readonly("frame_count", &SpriteSheetRenderer::GetFrameCount);
+        .def_property_readonly("frame_count", &SpriteSheetRenderer::GetFrameCount)
+        .def("set_tint", &SpriteSheetRenderer::SetTint, 
+            py::arg("r"), py::arg("g"), py::arg("b"), py::arg("a") = 255,
+            "Sets the RGBA tint color (0-255).") 
+        .def("set_opacity", &SpriteSheetRenderer::SetOpacity, 
+            py::arg("alpha"),
+            "Sets the transparency of the sprite (0.0 to 1.0).") 
+        .def("set_visible", &SpriteSheetRenderer::SetVisible, 
+            py::arg("visible"),
+            "Shows or hides the sprite.");
 
     ComponentRegistry::Register<SpriteSheetRenderer>("SpriteSheetRenderer", 
         [](GameObject& go, py::args args) -> py::object {

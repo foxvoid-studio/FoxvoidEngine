@@ -70,6 +70,7 @@ void BindCore(py::module_& m) {
         // We use reference policy so Python doesn't try to take ownership and delete the parent/children
         .def("get_parent", &GameObject::GetParent, py::return_value_policy::reference)
         .def("get_children", &GameObject::GetChildren, py::return_value_policy::reference)
+        .def("get_child_by_name", &GameObject::GetChildByName, py::return_value_policy::reference, "Recursively searches for a child GameObject by its name.")
         // We return GameObject* directly. Pybind11 will apply the reference policy automatically
         // and convert nullptr to Python's None safely.
         .def_static("spawn", [](const std::string& name) -> GameObject* {
