@@ -22,6 +22,16 @@ class ProjectSettings {
         static std::string GetStartScenePath();
         static void SetStartScenePath(const std::string& path);
 
+        // Cloud Settings
+        static std::string GetApiUrl();
+        static void SetApiUrl(const std::string& url);
+
+        static std::string GetGameSlug();
+        static void SetGameSlug(const std::string& url);
+
+        static std::string GetGameKey();
+        static void SetGameKey(const std::string& key);
+
         // Engine Directory Tracking
         static std::filesystem::path GetEngineRoot();
         static void SetEngineRoot(const std::filesystem::path& path);

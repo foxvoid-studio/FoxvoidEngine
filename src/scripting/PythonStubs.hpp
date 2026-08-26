@@ -1558,4 +1558,77 @@ class EventBus:
         :param event_name: The name of the event.
         """
         ...
+
+
+class HttpResponse:
+    """
+    Represents the result of an HTTP request.
+    """
+    status_code: int
+    body: str
+
+class HttpClient:
+    """
+    A cross-platform asynchronous HTTP client.
+    Allows Python scripts to perform GET and POST requests without blocking the game loop.
+    """
+    @staticmethod
+    def get(url: str, headers: Dict[str, str] = {}, on_success: Optional[Callable[[HttpResponse], None]] = None, on_error: Optional[Callable[[str], None]] = None) -> None:
+        """
+        Performs an asynchronous HTTP GET request.
+        
+        :param url: The target URL.
+        :param headers: A dictionary of HTTP headers.
+        :param on_success: Callback triggered when the request finishes successfully.
+        :param on_error: Callback triggered if the request fails (network error, timeout, etc.).
+        """
+        ...
+
+    @staticmethod
+    def post(url: str, headers: Dict[str, str] = {}, body: str = "", on_success: Optional[Callable[[HttpResponse], None]] = None, on_error: Optional[Callable[[str], None]] = None) -> None:
+        """
+        Performs an asynchronous HTTP POST request.
+        
+        :param url: The target URL.
+        :param headers: A dictionary of HTTP headers.
+        :param body: The string payload to send (usually JSON).
+        :param on_success: Callback triggered when the request finishes successfully.
+        :param on_error: Callback triggered if the request fails.
+        """
+        ...
+
+class CloudManager:
+    """
+    Manages communication with the Foxvoid Studio Backend-as-a-Service.
+    Automatically handles Player JWT authentication and Game API keys.
+    """
+    @staticmethod
+    def is_authenticated() -> bool:
+        """
+        Returns True if the current player is authenticated via the Foxvoid platform.
+        """
+        ...
+    
+    @staticmethod
+    def pull_save(key: str, on_success: Callable[[Dict[str, Any]], None], on_error: Optional[Callable[[str], None]] = None) -> None:
+        """
+        Asynchronously retrieves a ScriptableObject from the Foxvoid Cloud.
+        
+        :param key: The unique identifier for this save data (e.g., "player_stats").
+        :param on_success: Callback receiving the JSON data as a Python dictionary.
+        :param on_error: Callback triggered if the download fails or the player is not authenticated.
+        """
+        ...
+    
+    @staticmethod
+    def push_save(key: str, data: Dict[str, Any], on_success: Optional[Callable[[Dict[str, Any]], None]] = None, on_error: Optional[Callable[[str], None]] = None) -> None:
+        """
+        Asynchronously pushes a Python dictionary to the Foxvoid Cloud as a ScriptableObject.
+        
+        :param key: The unique identifier for this save data.
+        :param data: The Python dictionary containing the data to save.
+        :param on_success: Optional callback triggered when the save is confirmed by the server.
+        :param on_error: Optional callback triggered if the upload fails.
+        """
+        ...
 )";

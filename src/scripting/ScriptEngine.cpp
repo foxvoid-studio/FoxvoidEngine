@@ -9,6 +9,7 @@ PYBIND11_EMBEDDED_MODULE(foxvoid, m) {
     BindGraphics(m);
     BindGUI(m);
     BindAudio(m);
+    BindNetwork(m);
 }
 
 py::scoped_interpreter* ScriptEngine::s_interpreter = nullptr;

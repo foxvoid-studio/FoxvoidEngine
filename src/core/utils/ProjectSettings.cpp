@@ -152,6 +152,11 @@ bool ProjectSettings::CreateNewProject(const fs::path& rootDirectory, const std:
             {"display", {
                 {"width", 1280},
                 {"height", 720}
+            }},
+            {"cloud", {
+                {"api_url", "http://127.0.0.1:8000"}, // Default local server for development
+                {"game_slug", ""},
+                {"game_key", ""}
             }}
         };
 
@@ -248,4 +253,49 @@ fs::path ProjectSettings::GetProjectRoot() {
 
 fs::path ProjectSettings::GetAssetsPath() { 
     return s_projectRoot / "assets"; 
+}
+
+// Cloud Settings Implementation
+std::string ProjectSettings::GetApiUrl() {
+    if (s_config.contains("cloud") && s_config["cloud"].contains("api_url")) {
+        return s_config["cloud"]["api_url"];
+    }
+    // Fallback to the default production server.
+    return "https://foxvoid.com";
+}
+
+void ProjectSettings::SetApiUrl(const std::string& url) {
+    if (!s_config.contains("cloud")) {
+        s_config["cloud"] = nlohmann::json::object();
+    }
+    s_config["cloud"]["api_url"] = url;
+}
+
+std::string ProjectSettings::GetGameSlug() {
+    if (s_config.contains("cloud") && s_config["cloud"].contains("game_slug")) {
+        return s_config["cloud"]["game_slug"];
+    }
+    // If it is empty, it means the game is not yet linked to the platform.
+    return "";
+}
+
+void ProjectSettings::SetGameSlug(const std::string& slug) {
+    if (!s_config.contains("cloud")) {
+        s_config["cloud"] = nlohmann::json::object();
+    }
+    s_config["cloud"]["game_slug"] = slug;
+}
+
+std::string ProjectSettings::GetGameKey() {
+    if (s_config.contains("cloud") && s_config["cloud"].contains("game_key")) {
+        return s_config["cloud"]["game_key"];
+    }
+    return "";
+}
+
+void ProjectSettings::SetGameKey(const std::string& key) {
+    if (!s_config.contains("cloud")) {
+        s_config["cloud"] = nlohmann::json::object();
+    }
+    s_config["cloud"]["game_key"] = key;
 }

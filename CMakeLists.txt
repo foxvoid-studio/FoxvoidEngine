@@ -208,8 +208,14 @@ file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS
     "src/math/*.cpp"
     "src/scripting/*.cpp"
     "src/scene/*.cpp"
+    "src/network/*.cpp"
+    "src/cloud/*.cpp"
     "src/main.cpp"
 )
+
+if (NOT EMSCRIPTEN)
+    find_package(Threads REQUIRED)
+endif()
 
 # =========================================================================
 # EDITOR BUILD TARGET (FoxvoidEngine) - Desktop Only
@@ -234,6 +240,7 @@ if (NOT ANDROID AND NOT EMSCRIPTEN)
         raylib 
         nlohmann_json::nlohmann_json 
         pybind11::embed
+        Threads::Threads
     )
 
     target_include_directories(FoxvoidEngine PRIVATE 
@@ -268,6 +275,13 @@ target_link_libraries(FoxvoidStandalone PRIVATE
     pybind11::embed
 )
 
+if (NOT EMSCRIPTEN)
+    target_link_libraries(FoxvoidStandalone PRIVATE Threads::Threads)
+    if(WIN32)
+        target_link_libraries(FoxvoidStandalone PRIVATE wsock32 ws2_32)
+    endif()
+endif()
+
 target_include_directories(FoxvoidStandalone PRIVATE src)
 
 if (CMAKE_CROSSCOMPILING AND WIN32)
@@ -289,7 +303,8 @@ if (EMSCRIPTEN)
         "-sUSE_ZLIB=1"                           
         "-sASYNCIFY=1"                           
         "-sALLOW_MEMORY_GROWTH=1"                
-        "-sFORCE_FILESYSTEM=1"                   
+        "-sFORCE_FILESYSTEM=1"   
+        "-sFETCH=1"                
         
         "-sEXPORTED_RUNTIME_METHODS=ccall,cwrap,getValue,setValue,HEAPF32,HEAP8,HEAPU8"
         "-sEXPORTED_FUNCTIONS=_main,_malloc,_free"

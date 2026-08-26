@@ -6,6 +6,7 @@
 #include <sstream>
 #include "scripting/PythonStubs.hpp"
 #include <raylib.h>
+#include "cloud/CloudManager.hpp"
 
 #ifdef STANDALONE_MODE
 #include "input/InputManager.hpp"
@@ -86,6 +87,13 @@ int main(int argc, char** argv) {
     } else if (argc > 1) {
         std::cerr << "Error: Provided project path is invalid: " << projectPath << std::endl;
     }
+
+    // Foxvoid Cloud Initialization
+    std::string apiUrl = ProjectSettings::GetApiUrl();
+    std::string gameSlug = ProjectSettings::GetGameSlug();
+    std::string gameKey = ProjectSettings::GetGameKey();
+
+    CloudManager::Initialize(apiUrl, gameSlug, gameKey, "");
 
     try {
         // Initialize the Engine 
