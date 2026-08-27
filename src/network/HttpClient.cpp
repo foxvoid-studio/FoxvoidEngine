@@ -17,6 +17,8 @@ struct FetchContext {
     HttpClient::SuccessCallback onSuccess;
     HttpClient::ErrorCallback onError;
     std::string requestBody;
+    std::vector<std::string> headerStrings;
+    std::vector<const char*> customHeaders;
 };
 
 void OnFetchSuccess(emscripten_fetch_t *fetch) {
@@ -41,14 +43,18 @@ void OnFetchError(emscripten_fetch_t *fetch) {
     emscripten_fetch_close(fetch);
 }
 
-void SetupWasmHeaders(emscripten_fetch_attr_t& attr, const std::unordered_map<std::string, std::string>& headers, std::vector<const char*>& customHeaders) {
+void SetupWasmHeaders(emscripten_fetch_attr_t& attr, const std::unordered_map<std::string, std::string>& headers, FetchContext* ctx) {
     for (const auto& pair : headers) {
-        customHeaders.push_back(pair.first.c_str());
-        customHeaders.push_back(pair.second.c_str());
+        ctx->headerStrings.push_back(pair.first);
+        ctx->headerStrings.push_back(pair.second);
     }
-
-    customHeaders.push_back(nullptr);
-    attr.requestHeaders = customHeaders.data();
+    
+    for (const auto& str : ctx->headerStrings) {
+        ctx->customHeaders.push_back(str.c_str());
+    }
+    
+    ctx->customHeaders.push_back(nullptr);
+    attr.requestHeaders = ctx->customHeaders.data();
 }
 
 #endif
@@ -86,12 +92,14 @@ void HttpClient::Get(const std::string& url, const std::unordered_map<std::strin
         emscripten_fetch_attr_init(&attr);
         strcpy(attr.requestMethod, "GET");
         attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY;
-        attr.userData = new FetchContext{onSuccess, onError, ""};
+        
+        FetchContext* ctx = new FetchContext{onSuccess, onError, ""};
+        attr.userData = ctx;
+
         attr.onsuccess = OnFetchSuccess;
         attr.onerror = OnFetchError;
 
-        std::vector<const char*> customHeaders;
-        SetupWasmHeaders(attr, headers, customHeaders);
+        SetupWasmHeaders(attr, headers, ctx);
         emscripten_fetch(&attr, url.c_str());
     #else
         // Desktop: Run HTTP request in a detached thread to prevent blocking the game loop
@@ -133,7 +141,7 @@ void HttpClient::Post(const std::string& url, const std::unordered_map<std::stri
         attr.requestDataSize = ctx->requestBody.size();
 
         std::vector<const char*> customHeaders;
-        SetupWasmHeaders(attr, headers, customHeaders);
+        SetupWasmHeaders(attr, headers, ctx);
         emscripten_fetch(&attr, url.c_str());
     #else
         // Desktop: Run HTTP request in a detached thread

@@ -1,147 +1,230 @@
 #include "scripting/ScriptBindings.hpp"
 #include <iostream>
+#include <memory> 
 #include <pybind11/stl.h>
-#include <pybind11/functional.h> // Required for passing lambdas
+#include <pybind11/functional.h> 
 
 #include "cloud/CloudManager.hpp"
 #include <network/HttpClient.hpp>
+#include <scripting/ScriptableObject.hpp>
+
+// ==========================================
+// ASYNC PYTHON CALLBACK MANAGER (BULLETPROOF)
+// ==========================================
+#ifdef __EMSCRIPTEN__
+    #define SAFE_GIL_ACQUIRE() 
+#else
+    #define SAFE_GIL_ACQUIRE() py::gil_scoped_acquire acquire;
+#endif
+
+#define EXECUTE_PYTHON_CALLBACK(code_block) \
+    try { \
+        SAFE_GIL_ACQUIRE() \
+        code_block \
+    } catch (const py::error_already_set& e) { \
+        std::cerr << "[Python Async Error] " << e.what() << std::endl; \
+    } catch (const std::exception& e) { \
+        std::cerr << "[C++ Async Error] " << e.what() << std::endl; \
+    }
+
+struct PyAsyncContext {
+    py::object onSuccess;
+    py::object onError;
+    py::object extra; 
+
+    PyAsyncContext(py::object success, py::object error, py::object ex = py::none()) 
+        : onSuccess(success), onError(error), extra(ex) {}
+
+    ~PyAsyncContext() {
+        SAFE_GIL_ACQUIRE()
+        onSuccess = py::object(); 
+        onError = py::object();
+        extra = py::object();
+    }
+};
 
 void BindNetwork(py::module_& m) {
-    // HTTP client bindings
     py::class_<HttpResponse>(m, "HttpResponse")
         .def_readonly("status_code", &HttpResponse::statusCode)
         .def_readonly("body", &HttpResponse::body);
 
     py::class_<HttpClient>(m, "HttpClient")
         .def_static("get", [](const std::string& url, py::dict pyHeaders, py::object onSuccess, py::object onError) {
-            
-            // Convert Python dictionary to C++ std::unordered_map
-            std::unordered_map<std::string, std::string> headers;
-            for (auto item : pyHeaders) {
-                headers[py::cast<std::string>(item.first)] = py::cast<std::string>(item.second);
-            }
-
-            HttpClient::Get(url, headers, 
-                [onSuccess](const HttpResponse& response) {
-                    if (!onSuccess.is_none()) {
-                        py::gil_scoped_acquire acquire;
-                        onSuccess(response); // Pybind11 automatically converts HttpResponse to Python object
-                    }
-                },
-                [onError](const std::string& err) {
-                    if (!onError.is_none()) {
-                        py::gil_scoped_acquire acquire;
-                        onError(err);
-                    } else {
-                        std::cerr << "[HttpClient] GET Error: " << err << std::endl;
-                    }
+            try {
+                auto ctx = std::make_shared<PyAsyncContext>(onSuccess, onError);
+                std::unordered_map<std::string, std::string> headers;
+                for (auto item : pyHeaders) {
+                    headers[py::cast<std::string>(item.first)] = py::cast<std::string>(item.second);
                 }
-            );
+
+                HttpClient::Get(url, headers, 
+                    [ctx](const HttpResponse& response) {
+                        if (!ctx->onSuccess.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onSuccess(response); }) }
+                    },
+                    [ctx](const std::string& err) {
+                        if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(err); }) } 
+                        else { std::cerr << "[HttpClient] GET Error: " << err << std::endl; }
+                    }
+                );
+            } catch (const std::exception& e) { std::cerr << "[HttpClient] Fatal Sync Error in GET: " << e.what() << std::endl; }
         }, py::arg("url"), py::arg("headers") = py::dict(), py::arg("on_success") = py::none(), py::arg("on_error") = py::none())
         
         .def_static("post", [](const std::string& url, py::dict pyHeaders, const std::string& body, py::object onSuccess, py::object onError) {
-            
-            std::unordered_map<std::string, std::string> headers;
-            for (auto item : pyHeaders) {
-                headers[py::cast<std::string>(item.first)] = py::cast<std::string>(item.second);
-            }
-
-            HttpClient::Post(url, headers, body,
-                [onSuccess](const HttpResponse& response) {
-                    if (!onSuccess.is_none()) {
-                        py::gil_scoped_acquire acquire;
-                        onSuccess(response);
-                    }
-                },
-                [onError](const std::string& err) {
-                    if (!onError.is_none()) {
-                        py::gil_scoped_acquire acquire;
-                        onError(err);
-                    } else {
-                        std::cerr << "[HttpClient] POST Error: " << err << std::endl;
-                    }
+            try {
+                auto ctx = std::make_shared<PyAsyncContext>(onSuccess, onError);
+                std::unordered_map<std::string, std::string> headers;
+                for (auto item : pyHeaders) {
+                    headers[py::cast<std::string>(item.first)] = py::cast<std::string>(item.second);
                 }
-            );
+
+                HttpClient::Post(url, headers, body,
+                    [ctx](const HttpResponse& response) {
+                        if (!ctx->onSuccess.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onSuccess(response); }) }
+                    },
+                    [ctx](const std::string& err) {
+                        if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(err); }) } 
+                        else { std::cerr << "[HttpClient] POST Error: " << err << std::endl; }
+                    }
+                );
+            } catch (const std::exception& e) { std::cerr << "[HttpClient] Fatal Sync Error in POST: " << e.what() << std::endl; }
         }, py::arg("url"), py::arg("headers") = py::dict(), py::arg("body") = "", py::arg("on_success") = py::none(), py::arg("on_error") = py::none());
 
-    // Cloud manager bindings
     py::class_<CloudManager>(m, "CloudManager")
         .def_static("is_authenticated", &CloudManager::IsAuthenticated)
         
-        // PULL SAVE
         .def_static("pull_save", [](const std::string& key, py::object onSuccess, py::object onError) {
-            CloudManager::PullSave(key, 
-                // Success Callback (Runs asynchronously)
-                [onSuccess](const nlohmann::json& data) {
-                    if (!onSuccess.is_none()) {
-                        // CRITICAL: Acquire the Python Global Interpreter Lock before executing Python code
-                        // from a background thread (Desktop) or async callback (Wasm).
-                        py::gil_scoped_acquire acquire;
-                        
-                        try {
-                            // Convert C++ JSON to string, then parse it natively in Python
-                            py::module_ jsonMod = py::module_::import("json");
-                            py::object pyDict = jsonMod.attr("loads")(data.dump());
-                            
-                            // Execute the Python callback function
-                            onSuccess(pyDict);
-                        } catch (const std::exception& e) {
-                            std::cerr << "[Python Bindings] Error parsing Cloud Save data: " << e.what() << std::endl;
+            try {
+                auto ctx = std::make_shared<PyAsyncContext>(onSuccess, onError);
+                CloudManager::PullSave(key, 
+                    [ctx](const nlohmann::json& data) {
+                        if (!ctx->onSuccess.is_none()) {
+                            EXECUTE_PYTHON_CALLBACK({
+                                py::module_ jsonMod = py::module_::import("json");
+                                py::object pyDict = jsonMod.attr("loads")(data.dump());
+                                ctx->onSuccess(pyDict);
+                            })
                         }
+                    }, 
+                    [ctx](const std::string& err) {
+                        if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(err); }) } 
+                        else { std::cerr << "[Cloud] Pull Save Error: " << err << std::endl; }
                     }
-                }, 
-                // Error Callback (Runs asynchronously)
-                [onError](const std::string& err) {
-                    if (!onError.is_none()) {
-                        py::gil_scoped_acquire acquire;
-                        onError(err);
-                    } else {
-                        std::cerr << "[Cloud] Pull Save Error: " << err << std::endl;
-                    }
-                }
-            );
+                );
+            } catch (const std::exception& e) { std::cerr << "[Cloud] Fatal Sync Error in pull_save: " << e.what() << std::endl; }
         }, py::arg("key"), py::arg("on_success"), py::arg("on_error") = py::none())
         
-        // PUSH SAVE
         .def_static("push_save", [](const std::string& key, py::dict pyData, py::object onSuccess, py::object onError) {
-            
-            nlohmann::json cppData;
             try {
-                // Convert Python dict to JSON string, then parse it natively in C++
-                py::module_ jsonMod = py::module_::import("json");
-                std::string jsonStr = py::cast<std::string>(jsonMod.attr("dumps")(pyData));
-                cppData = nlohmann::json::parse(jsonStr);
-            } catch (const std::exception& e) {
-                std::cerr << "[Python Bindings] Error converting Python dict to JSON: " << e.what() << std::endl;
-                if (!onError.is_none()) {
-                    onError(std::string("Serialization error: ") + e.what());
+                auto ctx = std::make_shared<PyAsyncContext>(onSuccess, onError);
+                nlohmann::json cppData;
+                try {
+                    py::module_ jsonMod = py::module_::import("json");
+                    std::string jsonStr = py::cast<std::string>(jsonMod.attr("dumps")(pyData));
+                    cppData = nlohmann::json::parse(jsonStr);
+                } catch (const std::exception& e) {
+                    if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(std::string("Serialization error: ") + e.what()); }) }
+                    return;
                 }
-                return;
-            }
 
-            CloudManager::PushSave(key, cppData, 
-                // Success Callback
-                [onSuccess](const nlohmann::json& responseData) {
-                    if (!onSuccess.is_none()) {
-                        py::gil_scoped_acquire acquire;
-                        try {
-                            py::module_ jsonMod = py::module_::import("json");
-                            py::object pyDict = jsonMod.attr("loads")(responseData.dump());
-                            onSuccess(pyDict);
-                        } catch (const std::exception& e) {
-                            std::cerr << "[Python Bindings] Error parsing Cloud Save response: " << e.what() << std::endl;
+                CloudManager::PushSave(key, cppData, 
+                    [ctx](const nlohmann::json& responseData) {
+                        if (!ctx->onSuccess.is_none()) {
+                            EXECUTE_PYTHON_CALLBACK({
+                                py::module_ jsonMod = py::module_::import("json");
+                                py::object pyDict = jsonMod.attr("loads")(responseData.dump());
+                                ctx->onSuccess(pyDict);
+                            })
                         }
+                    },
+                    [ctx](const std::string& err) {
+                        if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(err); }) } 
+                        else { std::cerr << "[Cloud] Push Save Error: " << err << std::endl; }
                     }
-                },
-                // Error Callback
-                [onError](const std::string& err) {
-                    if (!onError.is_none()) {
-                        py::gil_scoped_acquire acquire;
-                        onError(err);
-                    } else {
-                        std::cerr << "[Cloud] Push Save Error: " << err << std::endl;
-                    }
+                );
+            } catch (const std::exception& e) { std::cerr << "[Cloud] Fatal Sync Error in push_save: " << e.what() << std::endl; }
+        }, py::arg("key"), py::arg("data"), py::arg("on_success") = py::none(), py::arg("on_error") = py::none())
+
+        .def_static("push_scriptable_object", [](const std::string& key, ScriptableObject* obj, py::object onSuccess, py::object onError) {
+            try {
+                auto ctx = std::make_shared<PyAsyncContext>(onSuccess, onError);
+                if (!obj) {
+                    if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(std::string("Cannot push a null ScriptableObject.")); }) }
+                    return;
                 }
-            );
-        }, py::arg("key"), py::arg("data"), py::arg("on_success") = py::none(), py::arg("on_error") = py::none());
+
+                nlohmann::json cppData = obj->Serialize();
+
+                CloudManager::PushSave(key, cppData, 
+                    [ctx](const nlohmann::json& responseData) {
+                        if (!ctx->onSuccess.is_none()) {
+                            EXECUTE_PYTHON_CALLBACK({
+                                py::module_ jsonMod = py::module_::import("json");
+                                py::object pyDict = jsonMod.attr("loads")(responseData.dump());
+                                ctx->onSuccess(pyDict);
+                            })
+                        }
+                    },
+                    [ctx](const std::string& err) {
+                        if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(err); }) }
+                    }
+                );
+            } catch (const std::exception& e) { std::cerr << "[Cloud] Fatal Sync Error in push_scriptable_object: " << e.what() << std::endl; }
+        }, py::arg("key"), py::arg("obj"), py::arg("on_success") = py::none(), py::arg("on_error") = py::none())
+        
+        .def_static("pull_scriptable_object", [](const std::string& key, py::object cls, py::object onSuccess, py::object onError) {
+            std::cout << "[C++] Entering pull_scriptable_object API..." << std::endl;
+            try {
+                auto ctx = std::make_shared<PyAsyncContext>(onSuccess, onError, cls);
+                std::cout << "[C++] PyAsyncContext successfully created." << std::endl;
+                
+                CloudManager::PullSave(key, 
+                    [ctx](const nlohmann::json& data) {
+                        if (!ctx->onSuccess.is_none()) {
+                            EXECUTE_PYTHON_CALLBACK({
+                                // CORRECTION VITALE ICI : Ajout des () pour instancier la classe !
+                                py::object pyInstance = ctx->extra()(); 
+                                
+                                ScriptableObject* cppInstance = pyInstance.cast<ScriptableObject*>();
+                                if (cppInstance) {
+                                    cppInstance->Deserialize(data);
+                                }
+                                ctx->onSuccess(pyInstance);
+                            })
+                        }
+                    }, 
+                    [ctx](const std::string& err) {
+                        if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(err); }) }
+                    }
+                );
+                std::cout << "[C++] CloudManager::PullSave successfully called." << std::endl;
+            } catch (const std::exception& e) {
+                std::cerr << "[C++] Synchronous Exception Caught in pull_scriptable_object: " << e.what() << std::endl;
+            } catch (...) {
+                std::cerr << "[C++] Unknown Synchronous Exception Caught in pull_scriptable_object!" << std::endl;
+            }
+        }, py::arg("key"), py::arg("cls"), py::arg("on_success"), py::arg("on_error") = py::none())
+
+        .def_static("pull_into_scriptable_object", [](const std::string& key, ScriptableObject* obj, py::object onSuccess, py::object onError) {
+            try {
+                auto ctx = std::make_shared<PyAsyncContext>(onSuccess, onError);
+                if (!obj) {
+                    if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(std::string("Target ScriptableObject is null.")); }) }
+                    return;
+                }
+
+                CloudManager::PullSave(key, 
+                    [obj, ctx](const nlohmann::json& data) {
+                        EXECUTE_PYTHON_CALLBACK({
+                            obj->Deserialize(data);
+                            if (!ctx->onSuccess.is_none()) {
+                                ctx->onSuccess();
+                            }
+                        })
+                    }, 
+                    [ctx](const std::string& err) {
+                        if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(err); }) }
+                    }
+                );
+            } catch (const std::exception& e) { std::cerr << "[Cloud] Fatal Sync Error in pull_into_scriptable_object: " << e.what() << std::endl; }
+        }, py::arg("key"), py::arg("obj"), py::arg("on_success") = py::none(), py::arg("on_error") = py::none());
 }

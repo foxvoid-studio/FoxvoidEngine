@@ -1633,3 +1633,28 @@ class CloudManager:
         :param on_error: Optional callback triggered if the upload fails.
         """
         ...
+
+    @staticmethod
+    def push_scriptable_object(key: str, obj: 'ScriptableObject', on_success: Optional[Callable[[Dict[str, Any]], None]] = None, on_error: Optional[Callable[[str], None]] = None) -> None:
+        """
+        Asynchronously serializes a ScriptableObject and pushes it to the cloud.
+        """
+        ...
+        
+    @staticmethod
+    def pull_scriptable_object(key: str, cls: type, on_success: Callable[['ScriptableObject'], None], on_error: Optional[Callable[[str], None]] = None) -> None:
+        """
+        Pulls JSON data from the cloud, instantiates the provided ScriptableObject class, 
+        deserializes the data into it, and returns it via the success callback.
+        
+        Example:
+            CloudManager.pull_scriptable_object("stats", PlayerStats, self.on_loaded)
+        """
+        ...
+
+    @staticmethod
+    def pull_into_scriptable_object(key: str, obj: 'ScriptableObject', on_success: Optional[Callable[[], None]] = None, on_error: Optional[Callable[[str], None]] = None) -> None:
+        """
+        Pulls JSON data from the cloud and overwrites the values of an existing ScriptableObject instance.
+        """
+        ...
