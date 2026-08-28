@@ -122,3 +122,32 @@ void CloudManager::PushSave(const std::string& saveKey, const nlohmann::json& da
         }
     }, onError);
 }
+
+void CloudManager::PullInventory(CloudSuccessCallback onSuccess, CloudErrorCallback onError) {
+    if (!IsAuthenticated()) {
+        if (onError) onError("CloudManager Error: Not authenticated");
+        return;
+    }
+
+    std::string url = s_apiBaseUrl + "/api/inventory/" + s_gameSlug;
+    std::unordered_map<std::string, std::string> headers = {
+        {"Authorization", "Bearer " + s_jwtToken},
+        {"X-Game-Key", s_gameKey},
+        {"Accept", "application/json"}
+    };
+
+    HttpClient::Get(url, headers, [onSuccess, onError](const HttpResponse& response) {
+        if (response.statusCode == 200) {
+            try {
+                nlohmann::json responseJson = nlohmann::json::parse(response.body);
+                if (onSuccess) onSuccess(responseJson);
+            }
+            catch (const std::exception& e) {
+                if (onError) onError("CloudManager Error: Invalid JSON parsing in Inventory. " + std::string(e.what()));
+            }
+        }
+        else {
+            if (onError) onError("CloudManager Error: Pull Inventory failed. HTTP " + std::to_string(response.statusCode));
+        }
+    }, onError);
+}

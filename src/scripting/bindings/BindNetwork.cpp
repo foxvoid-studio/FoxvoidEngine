@@ -7,6 +7,7 @@
 #include "cloud/CloudManager.hpp"
 #include <network/HttpClient.hpp>
 #include <scripting/ScriptableObject.hpp>
+#include <cloud/CloudItem.hpp>
 
 // ==========================================
 // ASYNC PYTHON CALLBACK MANAGER (BULLETPROOF)
@@ -88,6 +89,16 @@ void BindNetwork(py::module_& m) {
                 );
             } catch (const std::exception& e) { std::cerr << "[HttpClient] Fatal Sync Error in POST: " << e.what() << std::endl; }
         }, py::arg("url"), py::arg("headers") = py::dict(), py::arg("body") = "", py::arg("on_success") = py::none(), py::arg("on_error") = py::none());
+
+    py::class_<CloudItem, PyCloudItem>(m, "CloudItem")
+        .def(py::init<>())
+        .def_readwrite("item_id", &CloudItem::itemId)
+        .def_readwrite("name", &CloudItem::name)
+        .def_readwrite("quantity", &CloudItem::quantity)
+        .def_readwrite("is_active", &CloudItem::isActive)
+        .def_readwrite("custom_data", &CloudItem::customData)
+        .def("deserialize", &CloudItem::Deserialize)
+        .def("on_deserialized", &CloudItem::OnDeserialized);
 
     py::class_<CloudManager>(m, "CloudManager")
         .def_static("is_authenticated", &CloudManager::IsAuthenticated)
@@ -226,5 +237,52 @@ void BindNetwork(py::module_& m) {
                     }
                 );
             } catch (const std::exception& e) { std::cerr << "[Cloud] Fatal Sync Error in pull_into_scriptable_object: " << e.what() << std::endl; }
-        }, py::arg("key"), py::arg("obj"), py::arg("on_success") = py::none(), py::arg("on_error") = py::none());
+        }, py::arg("key"), py::arg("obj"), py::arg("on_success") = py::none(), py::arg("on_error") = py::none())
+
+        .def_static("pull_inventory", [](py::object cls, py::object onSuccess, py::object onError) {
+            try {
+                // Pass 'cls' (the Python class type) into our async context
+                auto ctx = std::make_shared<PyAsyncContext>(onSuccess, onError, cls);
+                
+                CloudManager::PullInventory(
+                    [ctx](const nlohmann::json& data) {
+                        if (!ctx->onSuccess.is_none()) {
+                            EXECUTE_PYTHON_CALLBACK({
+                                py::list resultList;
+                                py::object itemClass = ctx->extra(); 
+                                
+                                // Retrieve the requested category from the Python class definition
+                                std::string targetCategory = "";
+                                if (py::hasattr(itemClass, "category")) {
+                                    targetCategory = py::cast<std::string>(itemClass.attr("category"));
+                                }
+
+                                py::module_ jsonMod = py::module_::import("json");
+                                
+                                for (const auto& itemData : data) {
+                                    std::string itemCategory = itemData.value("category", "");
+                                    
+                                    // Filter items based on the category requested (or all if empty)
+                                    if (targetCategory.empty() || itemCategory == targetCategory) {
+                                        py::object pyDict = jsonMod.attr("loads")(itemData.dump());
+                                        
+                                        // Instantiate the Python class (e.g., PlaneSkin())
+                                        py::object instance = itemClass();
+                                        
+                                        // Call C++ deserialize which will auto-trigger Python's on_deserialized()
+                                        instance.attr("deserialize")(pyDict);
+                                        
+                                        resultList.append(instance);
+                                    }
+                                }
+                                ctx->onSuccess(resultList);
+                            })
+                        }
+                    }, 
+                    [ctx](const std::string& err) {
+                        if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(err); }) } 
+                    }
+                );
+            } catch (const std::exception& e) { std::cerr << "[Cloud] Fatal Sync Error in pull_inventory: " << e.what() << std::endl; }
+        }, py::arg("cls"), py::arg("on_success"), py::arg("on_error") = py::none());
 }

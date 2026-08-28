@@ -1567,6 +1567,7 @@ class HttpResponse:
     status_code: int
     body: str
 
+
 class HttpClient:
     """
     A cross-platform asynchronous HTTP client.
@@ -1596,6 +1597,23 @@ class HttpClient:
         :param on_error: Callback triggered if the request fails.
         """
         ...
+
+
+class CloudItem:
+    item_id: int
+    name: str
+    quantity: int
+    is_active: bool
+    custom_data: Dict[str, Any]
+    category: str  # To be overridden by subclasses
+
+    def __init__(self) -> None: ...
+    def deserialize(self, data: Dict[str, Any]) -> None: ...
+    def on_deserialized(self) -> None: ...
+
+# Generic type allowing IDEs to understand that the list returned contains instances of the passed class
+TCloudItem = TypeVar('TCloudItem', bound=CloudItem)
+
 
 class CloudManager:
     """
@@ -1654,6 +1672,25 @@ class CloudManager:
     def pull_into_scriptable_object(key: str, obj: 'ScriptableObject', on_success: Optional[Callable[[], None]] = None, on_error: Optional[Callable[[str], None]] = None) -> None:
         """
         Pulls JSON data from the cloud and overwrites the values of an existing ScriptableObject instance.
+        """
+        ...
+
+    @staticmethod
+    def pull_inventory(
+        cls: type[TCloudItem],
+        on_success: Callable[[List[TCloudItem]], None],
+        on_error: Optional[Callable[[str], None]] = None
+    ) -> None:
+        """
+        Retrieves the player's active and valid inventory for the current game from the Foxvoid Cloud.
+        The response is automatically filtered by the 'category' attribute of the provided class 
+        and parsed into a list of instantiated objects of that specific CloudItem subclass.
+
+        :param cls: The Python class inheriting from CloudItem (e.g., PlaneSkin) to instantiate.
+        :param on_success: Callback triggered when the inventory is successfully retrieved.
+                           Receives a list containing instances of the requested class.
+        :param on_error: Optional callback triggered if the HTTP request fails or parsing errors occur.
+                         Receives a string containing the error message.
         """
         ...
 )";

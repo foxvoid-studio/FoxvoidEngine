@@ -22,6 +22,8 @@ class [[gnu::visibility("default")]] CloudManager {
         static void PullSave(const std::string& saveKey, CloudSuccessCallback onSuccess, CloudErrorCallback onError);
         static void PushSave(const std::string& saveKey, const nlohmann::json& data, CloudSuccessCallback onSuccess, CloudErrorCallback onError);
 
+        static void PullInventory(CloudSuccessCallback onSuccess, CloudErrorCallback onError);
+        
     private: 
         static std::string s_apiBaseUrl;
         static std::string s_gameSlug;
