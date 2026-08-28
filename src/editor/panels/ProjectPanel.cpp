@@ -31,6 +31,22 @@ bool IsScriptableObjectFile(const fs::path& filepath) {
     return false;
 }
 
+bool IsCloudItemFile(const fs::path& filepath) {
+    std::ifstream file(filepath);
+    if (file.is_open()) {
+        std::string line;
+        while (std::getline(file, line)) {
+            if (line.find("class ") != std::string::npos) {
+                if (line.find("(CloudItem)") != std::string::npos) {
+                    return true;
+                }
+                return false;
+            }
+        }
+    }
+    return false;
+}
+
 // Helper to generate a default Python script template
 void CreatePythonScript(const fs::path& directory, const std::string& scriptName, ScriptType type) {
     // Force the .py extension
@@ -73,6 +89,17 @@ void CreatePythonScript(const fs::path& directory, const std::string& scriptName
             file << "    def __init__(self):\n";
             file << "        super().__init__()\n";
             file << "        # Add your custom data properties here\n";
+        }
+        else if (type == ScriptType::CloudItem) {
+            file << "class " << className << "(CloudItem):\n";
+            file << "    # This string dictates which Django items are fetched\n";
+            file << "    category = \"\"\n\n";
+            file << "    def __init__(self):\n";
+            file << "        super().__init__()\n";
+            file << "        # Add your strongly typed attributes here\n\n";
+            file << "    def on_deserialized(self):\n";
+            file << "        # Map self.custom_data to your attributes here\n";
+            file << "        pass\n";
         }
 
         file.close();
@@ -237,6 +264,11 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
                     m_pendingScriptType = ScriptType::ScriptableObject;
                     m_requestScriptModal = true;
                 }
+                if (ImGui::MenuItem("Cloud Item Class")) {
+                    m_currentDirectory = assetsPath;
+                    m_pendingScriptType = ScriptType::CloudItem;
+                    m_requestScriptModal = true;
+                }
                 ImGui::EndMenu();
             }
 
@@ -315,7 +347,11 @@ void ProjectPanel::Draw(Scene& activeScene, GameObject*& selectedObject, pybind1
         static char scriptName[64] = "NewScript";
         ImGui::InputText("Name", scriptName, IM_ARRAYSIZE(scriptName));
         
-        ImGui::TextDisabled("Template: %s", m_pendingScriptType == ScriptType::Component ? "Component" : "Scriptable Object");
+        const char* templateName = "Component";
+        if (m_pendingScriptType == ScriptType::ScriptableObject) templateName = "Scriptable Object";
+        else if (m_pendingScriptType == ScriptType::CloudItem) templateName = "Cloud Item";
+        
+        ImGui::TextDisabled("Template: %s", templateName);
         ImGui::Spacing();
                 
         if (ImGui::Button("Create", ImVec2(120, 0))) {
@@ -558,6 +594,11 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
                         m_pendingScriptType = ScriptType::ScriptableObject;
                         m_requestScriptModal = true;
                     }
+                    if (ImGui::MenuItem("Cloud Item Class")) {
+                        m_currentDirectory = entry.path();
+                        m_pendingScriptType = ScriptType::CloudItem;
+                        m_requestScriptModal = true;
+                    }
                     ImGui::EndMenu();
                 }
                 ImGui::EndPopup();
@@ -655,6 +696,9 @@ void ProjectPanel::DrawDirectoryNode(Scene& activeScene, GameObject*& selectedOb
 
                             m_requestAssetModal = true;
                         }
+                    }
+                    else if (IsCloudItemFile(entry.path())) {
+                        ImGui::TextDisabled(ICON_FA_CLOUD " Cloud Item Script");
                     }
                     else {
                         ImGui::TextDisabled(ICON_FA_GEARS " Component Script");

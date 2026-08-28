@@ -12,11 +12,10 @@
 // ==========================================
 // ASYNC PYTHON CALLBACK MANAGER (BULLETPROOF)
 // ==========================================
-#ifdef __EMSCRIPTEN__
-    #define SAFE_GIL_ACQUIRE() 
-#else
-    #define SAFE_GIL_ACQUIRE() py::gil_scoped_acquire acquire;
-#endif
+
+// CRITICAL FIX: The GIL MUST be locked even in WebAssembly. 
+// Otherwise, Pybind11 will corrupt memory when managing object reference counts.
+#define SAFE_GIL_ACQUIRE() py::gil_scoped_acquire acquire;
 
 #define EXECUTE_PYTHON_CALLBACK(code_block) \
     try { \
@@ -37,10 +36,20 @@ struct PyAsyncContext {
         : onSuccess(success), onError(error), extra(ex) {}
 
     ~PyAsyncContext() {
-        SAFE_GIL_ACQUIRE()
-        onSuccess = py::object(); 
-        onError = py::object();
-        extra = py::object();
+        // C++ destructors are implicitly noexcept. 
+        // Emscripten destroying C++ lambdas from the JS event loop can cause Pybind11 
+        // to throw exceptions if the Python thread state is lost or corrupted.
+        // We MUST wrap GIL acquisition and object destruction in a try-catch to prevent std::terminate.
+        try {
+            SAFE_GIL_ACQUIRE()
+            onSuccess = py::object(); 
+            onError = py::object();
+            extra = py::object();
+        } catch (const std::exception& e) {
+            std::cerr << "[PyAsyncContext] Safely caught exception during memory cleanup: " << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "[PyAsyncContext] Safely caught unknown exception during cleanup." << std::endl;
+        }
     }
 };
 
@@ -60,11 +69,15 @@ void BindNetwork(py::module_& m) {
 
                 HttpClient::Get(url, headers, 
                     [ctx](const HttpResponse& response) {
-                        if (!ctx->onSuccess.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onSuccess(response); }) }
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onSuccess.is_none()) { ctx->onSuccess(response); }
+                        })
                     },
                     [ctx](const std::string& err) {
-                        if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(err); }) } 
-                        else { std::cerr << "[HttpClient] GET Error: " << err << std::endl; }
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onError.is_none()) { ctx->onError(err); } 
+                            else { std::cerr << "[HttpClient] GET Error: " << err << std::endl; }
+                        })
                     }
                 );
             } catch (const std::exception& e) { std::cerr << "[HttpClient] Fatal Sync Error in GET: " << e.what() << std::endl; }
@@ -80,24 +93,26 @@ void BindNetwork(py::module_& m) {
 
                 HttpClient::Post(url, headers, body,
                     [ctx](const HttpResponse& response) {
-                        if (!ctx->onSuccess.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onSuccess(response); }) }
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onSuccess.is_none()) { ctx->onSuccess(response); }
+                        })
                     },
                     [ctx](const std::string& err) {
-                        if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(err); }) } 
-                        else { std::cerr << "[HttpClient] POST Error: " << err << std::endl; }
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onError.is_none()) { ctx->onError(err); } 
+                            else { std::cerr << "[HttpClient] POST Error: " << err << std::endl; }
+                        })
                     }
                 );
             } catch (const std::exception& e) { std::cerr << "[HttpClient] Fatal Sync Error in POST: " << e.what() << std::endl; }
         }, py::arg("url"), py::arg("headers") = py::dict(), py::arg("body") = "", py::arg("on_success") = py::none(), py::arg("on_error") = py::none());
 
-    py::class_<CloudItem, PyCloudItem>(m, "CloudItem")
+    py::class_<CloudItem, PyCloudItem>(m, "CloudItem", py::dynamic_attr())
         .def(py::init<>())
         .def_readwrite("item_id", &CloudItem::itemId)
         .def_readwrite("name", &CloudItem::name)
         .def_readwrite("quantity", &CloudItem::quantity)
         .def_readwrite("is_active", &CloudItem::isActive)
-        .def_readwrite("custom_data", &CloudItem::customData)
-        .def("deserialize", &CloudItem::Deserialize)
         .def("on_deserialized", &CloudItem::OnDeserialized);
 
     py::class_<CloudManager>(m, "CloudManager")
@@ -108,17 +123,19 @@ void BindNetwork(py::module_& m) {
                 auto ctx = std::make_shared<PyAsyncContext>(onSuccess, onError);
                 CloudManager::PullSave(key, 
                     [ctx](const nlohmann::json& data) {
-                        if (!ctx->onSuccess.is_none()) {
-                            EXECUTE_PYTHON_CALLBACK({
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onSuccess.is_none()) {
                                 py::module_ jsonMod = py::module_::import("json");
                                 py::object pyDict = jsonMod.attr("loads")(data.dump());
                                 ctx->onSuccess(pyDict);
-                            })
-                        }
+                            }
+                        })
                     }, 
                     [ctx](const std::string& err) {
-                        if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(err); }) } 
-                        else { std::cerr << "[Cloud] Pull Save Error: " << err << std::endl; }
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onError.is_none()) { ctx->onError(err); } 
+                            else { std::cerr << "[Cloud] Pull Save Error: " << err << std::endl; }
+                        })
                     }
                 );
             } catch (const std::exception& e) { std::cerr << "[Cloud] Fatal Sync Error in pull_save: " << e.what() << std::endl; }
@@ -133,23 +150,27 @@ void BindNetwork(py::module_& m) {
                     std::string jsonStr = py::cast<std::string>(jsonMod.attr("dumps")(pyData));
                     cppData = nlohmann::json::parse(jsonStr);
                 } catch (const std::exception& e) {
-                    if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(std::string("Serialization error: ") + e.what()); }) }
+                    EXECUTE_PYTHON_CALLBACK({
+                        if (!ctx->onError.is_none()) { ctx->onError(std::string("Serialization error: ") + e.what()); }
+                    })
                     return;
                 }
 
                 CloudManager::PushSave(key, cppData, 
                     [ctx](const nlohmann::json& responseData) {
-                        if (!ctx->onSuccess.is_none()) {
-                            EXECUTE_PYTHON_CALLBACK({
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onSuccess.is_none()) {
                                 py::module_ jsonMod = py::module_::import("json");
                                 py::object pyDict = jsonMod.attr("loads")(responseData.dump());
                                 ctx->onSuccess(pyDict);
-                            })
-                        }
+                            }
+                        })
                     },
                     [ctx](const std::string& err) {
-                        if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(err); }) } 
-                        else { std::cerr << "[Cloud] Push Save Error: " << err << std::endl; }
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onError.is_none()) { ctx->onError(err); } 
+                            else { std::cerr << "[Cloud] Push Save Error: " << err << std::endl; }
+                        })
                     }
                 );
             } catch (const std::exception& e) { std::cerr << "[Cloud] Fatal Sync Error in push_save: " << e.what() << std::endl; }
@@ -159,7 +180,9 @@ void BindNetwork(py::module_& m) {
             try {
                 auto ctx = std::make_shared<PyAsyncContext>(onSuccess, onError);
                 if (!obj) {
-                    if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(std::string("Cannot push a null ScriptableObject.")); }) }
+                    EXECUTE_PYTHON_CALLBACK({
+                        if (!ctx->onError.is_none()) { ctx->onError(std::string("Cannot push a null ScriptableObject.")); }
+                    })
                     return;
                 }
 
@@ -167,73 +190,81 @@ void BindNetwork(py::module_& m) {
 
                 CloudManager::PushSave(key, cppData, 
                     [ctx](const nlohmann::json& responseData) {
-                        if (!ctx->onSuccess.is_none()) {
-                            EXECUTE_PYTHON_CALLBACK({
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onSuccess.is_none()) {
                                 py::module_ jsonMod = py::module_::import("json");
                                 py::object pyDict = jsonMod.attr("loads")(responseData.dump());
                                 ctx->onSuccess(pyDict);
-                            })
-                        }
+                            }
+                        })
                     },
                     [ctx](const std::string& err) {
-                        if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(err); }) }
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onError.is_none()) { ctx->onError(err); }
+                        })
                     }
                 );
             } catch (const std::exception& e) { std::cerr << "[Cloud] Fatal Sync Error in push_scriptable_object: " << e.what() << std::endl; }
         }, py::arg("key"), py::arg("obj"), py::arg("on_success") = py::none(), py::arg("on_error") = py::none())
         
         .def_static("pull_scriptable_object", [](const std::string& key, py::object cls, py::object onSuccess, py::object onError) {
-            std::cout << "[C++] Entering pull_scriptable_object API..." << std::endl;
             try {
                 auto ctx = std::make_shared<PyAsyncContext>(onSuccess, onError, cls);
-                std::cout << "[C++] PyAsyncContext successfully created." << std::endl;
                 
                 CloudManager::PullSave(key, 
                     [ctx](const nlohmann::json& data) {
-                        if (!ctx->onSuccess.is_none()) {
-                            EXECUTE_PYTHON_CALLBACK({
-                                // CORRECTION VITALE ICI : Ajout des () pour instancier la classe !
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onSuccess.is_none()) {
                                 py::object pyInstance = ctx->extra()(); 
-                                
                                 ScriptableObject* cppInstance = pyInstance.cast<ScriptableObject*>();
                                 if (cppInstance) {
-                                    cppInstance->Deserialize(data);
+                                    if (data.contains("data") && data["data"].is_object()) {
+                                        cppInstance->Deserialize(data["data"]);
+                                    } else {
+                                        cppInstance->Deserialize(data);
+                                    }
                                 }
                                 ctx->onSuccess(pyInstance);
-                            })
-                        }
+                            }
+                        })
                     }, 
                     [ctx](const std::string& err) {
-                        if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(err); }) }
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onError.is_none()) { ctx->onError(err); }
+                        })
                     }
                 );
-                std::cout << "[C++] CloudManager::PullSave successfully called." << std::endl;
-            } catch (const std::exception& e) {
-                std::cerr << "[C++] Synchronous Exception Caught in pull_scriptable_object: " << e.what() << std::endl;
-            } catch (...) {
-                std::cerr << "[C++] Unknown Synchronous Exception Caught in pull_scriptable_object!" << std::endl;
-            }
+            } catch (const std::exception& e) { std::cerr << "[Cloud] Synchronous Exception Caught in pull_scriptable_object: " << e.what() << std::endl; }
         }, py::arg("key"), py::arg("cls"), py::arg("on_success"), py::arg("on_error") = py::none())
 
         .def_static("pull_into_scriptable_object", [](const std::string& key, ScriptableObject* obj, py::object onSuccess, py::object onError) {
             try {
                 auto ctx = std::make_shared<PyAsyncContext>(onSuccess, onError);
                 if (!obj) {
-                    if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(std::string("Target ScriptableObject is null.")); }) }
+                    EXECUTE_PYTHON_CALLBACK({
+                        if (!ctx->onError.is_none()) { ctx->onError(std::string("Target ScriptableObject is null.")); }
+                    })
                     return;
                 }
 
                 CloudManager::PullSave(key, 
                     [obj, ctx](const nlohmann::json& data) {
                         EXECUTE_PYTHON_CALLBACK({
-                            obj->Deserialize(data);
+                            if (data.contains("data") && data["data"].is_object()) {
+                                obj->Deserialize(data["data"]);
+                            } else {
+                                obj->Deserialize(data);
+                            }
+
                             if (!ctx->onSuccess.is_none()) {
                                 ctx->onSuccess();
                             }
                         })
                     }, 
                     [ctx](const std::string& err) {
-                        if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(err); }) }
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onError.is_none()) { ctx->onError(err); }
+                        })
                     }
                 );
             } catch (const std::exception& e) { std::cerr << "[Cloud] Fatal Sync Error in pull_into_scriptable_object: " << e.what() << std::endl; }
@@ -241,46 +272,70 @@ void BindNetwork(py::module_& m) {
 
         .def_static("pull_inventory", [](py::object cls, py::object onSuccess, py::object onError) {
             try {
-                // Pass 'cls' (the Python class type) into our async context
                 auto ctx = std::make_shared<PyAsyncContext>(onSuccess, onError, cls);
                 
                 CloudManager::PullInventory(
                     [ctx](const nlohmann::json& data) {
-                        if (!ctx->onSuccess.is_none()) {
-                            EXECUTE_PYTHON_CALLBACK({
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onSuccess.is_none()) {
                                 py::list resultList;
-                                py::object itemClass = ctx->extra(); 
                                 
-                                // Retrieve the requested category from the Python class definition
-                                std::string targetCategory = "";
-                                if (py::hasattr(itemClass, "category")) {
-                                    targetCategory = py::cast<std::string>(itemClass.attr("category"));
+                                if (!data.is_array()) {
+                                    std::cerr << "[Cloud] pull_inventory API response is not a valid JSON array." << std::endl;
+                                    ctx->onSuccess(resultList); 
+                                    return;
                                 }
 
-                                py::module_ jsonMod = py::module_::import("json");
+                                py::object itemClass = ctx->extra; 
+                                std::string targetCategory = "";
+                                if (py::hasattr(itemClass, "category")) {
+                                    targetCategory = py::cast<std::string>(py::str(itemClass.attr("category")));
+                                }
                                 
                                 for (const auto& itemData : data) {
+                                    if (!itemData.is_object()) continue; 
+
                                     std::string itemCategory = itemData.value("category", "");
                                     
-                                    // Filter items based on the category requested (or all if empty)
                                     if (targetCategory.empty() || itemCategory == targetCategory) {
-                                        py::object pyDict = jsonMod.attr("loads")(itemData.dump());
                                         
-                                        // Instantiate the Python class (e.g., PlaneSkin())
+                                        // Instantiate the Python class
                                         py::object instance = itemClass();
                                         
-                                        // Call C++ deserialize which will auto-trigger Python's on_deserialized()
-                                        instance.attr("deserialize")(pyDict);
+                                        // CRITICAL FIX: Set attributes directly via Python to bypass C++ RTTI casting errors in WASM
+                                        instance.attr("item_id") = itemData.value("item_id", 0);
+                                        instance.attr("name") = itemData.value("name", "");
+                                        instance.attr("quantity") = itemData.value("quantity", 0);
+                                        instance.attr("is_active") = itemData.value("is_active", false);
+                                        
+                                        py::dict customDataDict;
+                                        if (itemData.contains("custom_data") && itemData["custom_data"].is_object()) {
+                                            for (auto& [k, v] : itemData["custom_data"].items()) {
+                                                if (v.is_string()) customDataDict[k.c_str()] = v.get<std::string>();
+                                                else if (v.is_number_integer()) customDataDict[k.c_str()] = v.get<int>();
+                                                else if (v.is_number_float()) customDataDict[k.c_str()] = v.get<float>();
+                                                else if (v.is_boolean()) customDataDict[k.c_str()] = v.get<bool>();
+                                            }
+                                        }
+                                        
+                                        instance.attr("custom_data") = customDataDict; 
+                                        
+                                        // Trigger Python's on_deserialized dynamically
+                                        if (py::hasattr(instance, "on_deserialized")) {
+                                            instance.attr("on_deserialized")();
+                                        }
                                         
                                         resultList.append(instance);
                                     }
                                 }
                                 ctx->onSuccess(resultList);
-                            })
-                        }
+                            }
+                        })
                     }, 
                     [ctx](const std::string& err) {
-                        if (!ctx->onError.is_none()) { EXECUTE_PYTHON_CALLBACK({ ctx->onError(err); }) } 
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onError.is_none()) { ctx->onError(err); } 
+                        })
                     }
                 );
             } catch (const std::exception& e) { std::cerr << "[Cloud] Fatal Sync Error in pull_inventory: " << e.what() << std::endl; }

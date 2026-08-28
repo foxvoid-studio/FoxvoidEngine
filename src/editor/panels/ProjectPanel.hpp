@@ -22,7 +22,8 @@ namespace fs = std::filesystem;
 // Define the types of scripts we can generate
 enum class ScriptType {
     Component,
-    ScriptableObject
+    ScriptableObject,
+    CloudItem
 };
 
 class ProjectPanel {

@@ -304,7 +304,10 @@ if (EMSCRIPTEN)
         "-sASYNCIFY=1"                           
         "-sALLOW_MEMORY_GROWTH=1"                
         "-sFORCE_FILESYSTEM=1"   
-        "-sFETCH=1"                
+        "-sFETCH=1"            
+        
+        "-sDISABLE_EXCEPTION_CATCHING=0"
+        "-sEXCEPTION_DEBUG=1"
         
         "-sEXPORTED_RUNTIME_METHODS=ccall,cwrap,getValue,setValue,HEAPF32,HEAP8,HEAPU8"
         "-sEXPORTED_FUNCTIONS=_main,_malloc,_free"
