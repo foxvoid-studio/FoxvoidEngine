@@ -151,3 +151,38 @@ void CloudManager::PullInventory(CloudSuccessCallback onSuccess, CloudErrorCallb
         }
     }, onError);
 }
+
+void CloudManager::EquipItem(int itemId, const std::string& category, bool disableAll, CloudSuccessCallback onSuccess, CloudErrorCallback onError) {
+    if (!IsAuthenticated()) {
+        if (onError) onError("CloudManager Error: Not authenticated");
+        return;
+    }
+
+    std::string url = s_apiBaseUrl + "/api/inventory/" + s_gameSlug + "/equip";
+    std::unordered_map<std::string, std::string> headers = {
+        {"Authorization", "Bearer " + s_jwtToken},
+        {"X-Game-Key", s_gameKey},
+        {"Content-Type", "application/json"},
+        {"Accept", "application/json"}
+    };
+
+    nlohmann::json payload;
+    payload["item_id"] = itemId;
+    payload["category"] = category;
+    payload["disable_all"] = disableAll;
+
+    HttpClient::Post(url, headers, payload.dump(), [onSuccess, onError](const HttpResponse& response) {
+        if (response.statusCode == 200) {
+            try {
+                nlohmann::json responseJson = nlohmann::json::parse(response.body);
+                if (onSuccess) onSuccess(responseJson);
+            }
+            catch (const std::exception& e) {
+                if (onError) onError("CloudManager Error: Invalid JSON parsing in EquipItem. " + std::string(e.what()));
+            }
+        }
+        else {
+            if (onError) onError("CloudManager Error: Equip Item failed. HTTP " + std::to_string(response.statusCode));
+        }
+    }, onError);
+}

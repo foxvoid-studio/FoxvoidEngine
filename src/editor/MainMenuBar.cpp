@@ -10,6 +10,8 @@
 #include "core/assets/AssetRegistry.hpp"
 #include "build/Build.hpp"
 #include "build/IBuilder.hpp"
+#include "network/HttpClient.hpp"
+#include "cloud/CloudManager.hpp"
 
 void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& isRunning, GameObject*& selectedObject, InputSettingsPanel& inputPanel, GameStatePanel& gameStatePanel, bool& showGlobalGrid) {
     // Global Shortcuts
@@ -101,6 +103,16 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("Cloud")) {
+            if (ImGui::MenuItem("Developer Login...")) {
+                m_openLoginPopup = true;
+                m_loginSuccess = false;
+                std::lock_guard<std::mutex> lock(m_authMutex);
+                m_authMessage = "";
+            }
+            ImGui::EndMenu();
+        }
+
         if (ImGui::BeginMenu("Build")) {
             if (ImGui::MenuItem("Build Project...")) {
                 m_openBuildPopup = true;
@@ -139,6 +151,102 @@ void MainMenuBar::Draw(Scene& activeScene, std::string& currentScenePath, bool& 
         if (ImGui::Button("Cancel", ImVec2(120, 0))) {
             ImGui::CloseCurrentPopup();
         }
+        ImGui::EndPopup();
+    }
+
+    if (m_openLoginPopup) {
+        ImGui::OpenPopup("Cloud Login");
+        m_openLoginPopup = false;
+    }
+
+    if (ImGui::BeginPopupModal("Cloud Login", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextUnformatted("Login to Foxvoid Studio");
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::InputText("Username", m_usernameBuffer, sizeof(m_usernameBuffer));
+        ImGui::InputText("Password", m_passwordBuffer, sizeof(m_passwordBuffer), ImGuiInputTextFlags_Password);
+
+        ImGui::Spacing();
+
+        // Affiche les messages (erreurs ou chargement) de manière thread-safe
+        {
+            std::lock_guard<std::mutex> lock(m_authMutex);
+            if (!m_authMessage.empty()) {
+                ImGui::TextColored(m_loginSuccess ? ImVec4(0.2f, 1.0f, 0.2f, 1.0f) : ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", m_authMessage.c_str());
+            }
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        if (m_isAuthenticating) {
+            ImGui::BeginDisabled();
+            ImGui::Button("Connecting...", ImVec2(120, 0));
+            ImGui::EndDisabled();
+        } else {
+            if (ImGui::Button("Login", ImVec2(120, 0))) {
+                m_isAuthenticating = true;
+                m_loginSuccess = false;
+                
+                {
+                    std::lock_guard<std::mutex> lock(m_authMutex);
+                    m_authMessage = "Contacting server...";
+                }
+
+                // Prepare JSON payload for django-ninja-jwt
+                nlohmann::json payload;
+                payload["username"] = m_usernameBuffer;
+                payload["password"] = m_passwordBuffer;
+
+                std::unordered_map<std::string, std::string> headers = {
+                    {"Content-Type", "application/json"}
+                };
+
+                std::string url = ProjectSettings::GetApiUrl() + "/api/token/pair";
+
+                HttpClient::Post(url, headers, payload.dump(), [this](const HttpResponse& response) {
+                    if (response.statusCode == 200) {
+                        try {
+                            nlohmann::json jsonRes = nlohmann::json::parse(response.body);
+                            std::string access = jsonRes.value("access", "");
+                            std::string refresh = jsonRes.value("refresh", ""); 
+                            
+                            // Save both locally and inject access into CloudManager
+                            ProjectSettings::SaveLocalAuth(access, refresh);
+                            CloudManager::SetAuthData(access, ProjectSettings::GetGameKey());
+                            
+                            std::lock_guard<std::mutex> lock(m_authMutex);
+                            m_authMessage = "Login successful!";
+                            m_loginSuccess = true;
+                        } catch (...) {
+                            std::lock_guard<std::mutex> lock(m_authMutex);
+                            m_authMessage = "Error: Invalid response format from server.";
+                        }
+                    } else {
+                        std::lock_guard<std::mutex> lock(m_authMutex);
+                        m_authMessage = "Error: Invalid credentials or server offline.";
+                    }
+                    m_isAuthenticating = false;
+                }, [this](const std::string& err) {
+                    std::lock_guard<std::mutex> lock(m_authMutex);
+                    m_authMessage = "Network Error: " + err;
+                    m_isAuthenticating = false;
+                });
+            }
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+
+        // Auto-close on success after drawing the frame
+        if (m_loginSuccess && !m_isAuthenticating) {
+            ImGui::CloseCurrentPopup();
+        }
+
         ImGui::EndPopup();
     }
 

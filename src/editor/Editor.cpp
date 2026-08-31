@@ -9,6 +9,8 @@
 #include "input/InputManager.hpp"
 #include "core/GameStateManager.hpp"
 #include "core/Engine.hpp"
+#include "cloud/CloudManager.hpp"
+#include <network/HttpClient.hpp>
 
 #ifndef STANDALONE_MODE
 #include <imgui.h>
@@ -172,6 +174,50 @@ void Editor::OnProjectLoaded() {
 
     InputManager::Load((settingsPath / "inputs.json").string());
     GameStateManager::Load((settingsPath / "globals.json").string());
+
+    // Update CloudManager with the correct project settings now that project.json is loaded
+    CloudManager::Initialize(
+        ProjectSettings::GetApiUrl(),
+        ProjectSettings::GetGameSlug(),
+        ProjectSettings::GetGameKey(),
+        "" // We let the auto-login system just below handle the JWT token injection
+    );
+
+    std::string savedRefresh = ProjectSettings::GetLocalRefreshToken();
+    std::string savedAccess = ProjectSettings::GetLocalAccessToken();
+
+    if (!savedRefresh.empty()) {
+        std::string url = ProjectSettings::GetApiUrl() + "/api/token/refresh";
+        nlohmann::json payload = {{"refresh", savedRefresh}};
+        std::unordered_map<std::string, std::string> headers = {{"Content-Type", "application/json"}};
+
+        // Try to get a brand new access token silently
+        HttpClient::Post(url, headers, payload.dump(), [](const HttpResponse& response) {
+            if (response.statusCode == 200) {
+                try {
+                    nlohmann::json jsonRes = nlohmann::json::parse(response.body);
+                    std::string newAccess = jsonRes.value("access", "");
+                    
+                    // django-ninja-jwt might rotate the refresh token, so we update it if provided
+                    std::string newRefresh = jsonRes.value("refresh", ProjectSettings::GetLocalRefreshToken()); 
+
+                    ProjectSettings::SaveLocalAuth(newAccess, newRefresh);
+                    CloudManager::SetAuthData(newAccess, ProjectSettings::GetGameKey());
+                    std::cout << "[Editor] Cloud Auto-login successful (Token refreshed)." << std::endl;
+                } catch (...) {
+                    std::cerr << "[Editor] Auto-login failed: Invalid refresh response." << std::endl;
+                }
+            } else {
+                std::cerr << "[Editor] Refresh token expired. Please login again via the Cloud menu." << std::endl;
+            }
+        }, [](const std::string& err) {
+            std::cerr << "[Editor] Cloud Auto-login network error: " << err << std::endl;
+        });
+    } else if (!savedAccess.empty()) {
+        // Fallback if we only have an access token (e.g. from an older version of the file)
+        CloudManager::SetAuthData(savedAccess, ProjectSettings::GetGameKey());
+        std::cout << "[Editor] Cloud logged in using fallback Access Token." << std::endl;
+    }
 
     std::cout << "[Editor] Project settings loaded." << std::endl;
 }

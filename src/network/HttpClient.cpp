@@ -7,6 +7,7 @@
 #else
     #include <thread>
     #include <network/httplib.h>
+    #include "core/utils/MainThreadDispatcher.hpp"
 #endif
 
 #pragma region WebAssembly implementation
@@ -104,21 +105,39 @@ void HttpClient::Get(const std::string& url, const std::unordered_map<std::strin
     #else
         // Desktop: Run HTTP request in a detached thread to prevent blocking the game loop
         std::thread([url, headers, onSuccess, onError]() {
-            std::string baseUrl, path;
-            ParseUrl(url, baseUrl, path);
+            try {
+                std::string baseUrl, path;
+                ParseUrl(url, baseUrl, path);
 
-            httplib::Client cli(baseUrl);
-            httplib::Headers httplibHeaders;
-            for (const auto& pair : headers) {
-                httplibHeaders.insert({pair.first, pair.second});
-            }
+                httplib::Client cli(baseUrl);
+                httplib::Headers httplibHeaders;
+                for (const auto& pair : headers) {
+                    httplibHeaders.insert({pair.first, pair.second});
+                }
 
-            if (auto res = cli.Get(path.c_str(), httplibHeaders)) {
-                HttpResponse response = {res->status, res->body};
-                if (onSuccess) onSuccess(response);
-            } else {
-                auto err = res.error();
-                if (onError) onError("HTTP GET Failed with httplib error code: " + std::to_string(static_cast<int>(err)));
+                if (auto res = cli.Get(path.c_str(), httplibHeaders)) {
+                    HttpResponse response = {res->status, res->body};
+                    if (onSuccess) {
+                        MainThreadDispatcher::RunOnMainThread([onSuccess, response]() {
+                            onSuccess(response);
+                        });
+                    }
+                } else {
+                    auto err = res.error();
+                    if (onError) {
+                        std::string errStr = "HTTP GET Failed with httplib error code: " + std::to_string(static_cast<int>(err));
+                        MainThreadDispatcher::RunOnMainThread([onError, errStr]() {
+                            onError(errStr);
+                        });
+                    }
+                }
+            } catch (const std::exception& e) {
+                if (onError) {
+                    std::string errStr = std::string("HTTP GET Fatal Exception: ") + e.what();
+                    MainThreadDispatcher::RunOnMainThread([onError, errStr]() {
+                        onError(errStr);
+                    });
+                }
             }
         }).detach();
     #endif
@@ -146,26 +165,43 @@ void HttpClient::Post(const std::string& url, const std::unordered_map<std::stri
     #else
         // Desktop: Run HTTP request in a detached thread
         std::thread([url, headers, body, onSuccess, onError]() {
-            std::string baseUrl, path;
-            ParseUrl(url, baseUrl, path);
+            try {
+                std::string baseUrl, path;
+                ParseUrl(url, baseUrl, path);
 
-            httplib::Client cli(baseUrl);
-            httplib::Headers httplibHeaders;
-            for (const auto& pair : headers) {
-                httplibHeaders.insert({pair.first, pair.second});
-            }
+                httplib::Client cli(baseUrl);
+                httplib::Headers httplibHeaders;
+                for (const auto& pair : headers) {
+                    httplibHeaders.insert({pair.first, pair.second});
+                }
 
-            // Post expects the content type as a dedicated parameter in cpp-httplib
-            std::string contentType = "application/json";
-            auto it = headers.find("Content-Type");
-            if (it != headers.end()) contentType = it->second;
+                std::string contentType = "application/json";
+                auto it = headers.find("Content-Type");
+                if (it != headers.end()) contentType = it->second;
 
-            if (auto res = cli.Post(path.c_str(), httplibHeaders, body, contentType.c_str())) {
-                HttpResponse response = {res->status, res->body};
-                if (onSuccess) onSuccess(response);
-            } else {
-                auto err = res.error();
-                if (onError) onError("HTTP POST Failed with httplib error code: " + std::to_string(static_cast<int>(err)));
+                if (auto res = cli.Post(path.c_str(), httplibHeaders, body, contentType.c_str())) {
+                    HttpResponse response = {res->status, res->body};
+                    if (onSuccess) {
+                        MainThreadDispatcher::RunOnMainThread([onSuccess, response]() {
+                            onSuccess(response);
+                        });
+                    }
+                } else {
+                    auto err = res.error();
+                    if (onError) {
+                        std::string errStr = "HTTP POST Failed with httplib error code: " + std::to_string(static_cast<int>(err));
+                        MainThreadDispatcher::RunOnMainThread([onError, errStr]() {
+                            onError(errStr);
+                        });
+                    }
+                }
+            } catch (const std::exception& e) {
+                if (onError) {
+                    std::string errStr = std::string("HTTP POST Fatal Exception: ") + e.what();
+                    MainThreadDispatcher::RunOnMainThread([onError, errStr]() {
+                        onError(errStr);
+                    });
+                }
             }
         }).detach();
     #endif

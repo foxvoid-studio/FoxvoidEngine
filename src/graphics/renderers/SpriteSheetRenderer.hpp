@@ -16,6 +16,8 @@ class SpriteSheetRenderer : public Component {
     public:
         bool flipX = false;
         bool flipY = false;
+        bool isHUD = false;
+        bool preserveAspect = false;
     
         // Takes the texture path, and the grid dimensions (columns and rows)
         SpriteSheetRenderer(const std::string& texturePath = "", int columns = 1, int rows = 1);
@@ -23,6 +25,7 @@ class SpriteSheetRenderer : public Component {
 
         void Start() override;
         void Render() override;
+        void RenderHUD() override;
 
         // Safely unloads the old texture and loads the new one
         void SetTexture(const std::string& path);

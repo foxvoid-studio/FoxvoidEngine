@@ -6,6 +6,7 @@
 #include <cstring>
 #include "core/assets/AssetManager.hpp"
 #include "core/assets/AssetRegistry.hpp"
+#include "ui/core/RectTransform.hpp"
 #include <filesystem>
 
 SpriteSheetRenderer::SpriteSheetRenderer(const std::string& texturePath, int columns, int rows)
@@ -28,6 +29,11 @@ void SpriteSheetRenderer::SetTexture(const std::string& path) {
     
     // Interrogate the registry to find the unique ID of this file
     UUID assetId = AssetRegistry::GetUUIDForPath(path);
+
+    if (assetId == 0) {
+        std::cerr << "[SpriteSheetRenderer] Error: Texture path not found in AssetRegistry: '" << path << "'" << std::endl;
+    }
+
     SetTexture(assetId);
 }
 
@@ -67,7 +73,7 @@ void SpriteSheetRenderer::SetOpacity(float alpha) {
 
 void SpriteSheetRenderer::Start() {
     m_transform = owner->GetComponent<Transform2d>();
-    if (!m_transform) {
+    if (!m_transform && !isHUD) {
         std::cerr << "[SpriteSheetRenderer] Warning: No Transform2d found!" << std::endl;
     }
 }
@@ -104,7 +110,7 @@ Rectangle SpriteSheetRenderer::GetSourceRec() const {
 
 void SpriteSheetRenderer::Render() {
     // Early exit if the component is disabled or the sprite is set to invisible
-    if (!m_isVisible || !m_transform) return;
+    if (!m_isVisible || !m_transform || isHUD) return;
 
     // Source Rectangle: The specific frame from the spritesheet
     Rectangle sourceRec = GetSourceRec();
@@ -130,6 +136,63 @@ void SpriteSheetRenderer::Render() {
 
     // Draw with full transform support
     DrawTexturePro(m_texture, drawRec, destRec, origin, m_transform->rotation, m_tint);
+}
+
+void SpriteSheetRenderer::RenderHUD() {
+    // Early exit if the component shouldn't be rendered in the HUD
+    if (!isHUD || !m_isVisible || !owner || m_texture.id == 0) return;
+
+    // Get the specific frame rectangle from the spritesheet
+    Rectangle sourceRec = GetSourceRec();
+    Rectangle drawRec = sourceRec;
+    
+    // Apply texture flipping if requested
+    drawRec.width = std::abs(drawRec.width) * (flipX ? -1.0f : 1.0f);
+    drawRec.height = std::abs(drawRec.height) * (flipY ? -1.0f : 1.0f);
+
+    // --- MODERN UI RENDERING (Using RectTransform) ---
+    if (RectTransform* rectTransform = owner->GetComponent<RectTransform>()) {
+        // Retrieve the absolute screen space boundaries calculated by the anchor/pivot system
+        Rectangle destRec = rectTransform->GetScreenRect();
+        
+        // Adjust the destination rectangle to preserve the image's original aspect ratio
+        if (preserveAspect && drawRec.height != 0) {
+            // Calculate the aspect ratio of the source image and the UI container
+            float aspect = std::abs(drawRec.width / drawRec.height);
+            float destAspect = destRec.width / destRec.height;
+            
+            if (aspect > destAspect) {
+                // The image is wider than the UI box: fit to width and center vertically
+                float newHeight = destRec.width / aspect;
+                destRec.y += (destRec.height - newHeight) / 2.0f; 
+                destRec.height = newHeight;
+            } else {
+                // The image is taller than the UI box: fit to height and center horizontally
+                float newWidth = destRec.height * aspect;
+                destRec.x += (destRec.width - newWidth) / 2.0f;  
+                destRec.width = newWidth;
+            }
+        }
+        
+        // Draw the texture. Origin is (0,0) because the RectTransform already handles the pivot math.
+        DrawTexturePro(m_texture, drawRec, destRec, {0.0f, 0.0f}, 0.0f, m_tint);
+        return;
+    }
+
+    // --- FALLBACK RENDERING (Legacy Transform2d for backward compatibility) ---
+    if (m_transform) {
+        auto position = m_transform->GetGlobalPosition();
+        Rectangle destRec = {
+            position.x, 
+            position.y,
+            sourceRec.width * m_transform->scale.x,
+            sourceRec.height * m_transform->scale.y
+        };
+        
+        // Center the origin based on the scaled size
+        Vector2 origin = { destRec.width / 2.0f, destRec.height / 2.0f };
+        DrawTexturePro(m_texture, drawRec, destRec, origin, m_transform->rotation, m_tint);
+    }
 }
 
 std::string SpriteSheetRenderer::GetName() const {
@@ -220,6 +283,15 @@ void SpriteSheetRenderer::OnInspector() {
              CommandHistory::AddCommand(std::make_unique<ModifyComponentCommand>(this, initialState, Serialize()));
         }
     }
+
+    ImGui::Separator();
+    EditorUI::Checkbox("Is HUD (Screen Space)", &isHUD, this);
+
+    ImGui::Separator();
+    EditorUI::Checkbox("Is HUD (Screen Space)", &isHUD, this);
+    if (isHUD) {
+        EditorUI::Checkbox("Preserve Aspect Ratio", &preserveAspect, this);
+    }
 }
 #endif
 
@@ -230,7 +302,9 @@ nlohmann::json SpriteSheetRenderer::Serialize() const {
         {"columns", m_columns},
         {"rows", m_rows},
         {"isVisible", m_isVisible},
-        {"tint", {m_tint.r, m_tint.g, m_tint.b, m_tint.a}}
+        {"tint", {m_tint.r, m_tint.g, m_tint.b, m_tint.a}},
+        {"isHUD", isHUD},
+        {"preserveAspect", preserveAspect},
     };
 }
 
@@ -255,4 +329,7 @@ void SpriteSheetRenderer::Deserialize(const nlohmann::json& j) {
         m_tint.b = j["tint"][2].get<unsigned char>();
         m_tint.a = j["tint"][3].get<unsigned char>();
     }
+
+    isHUD = j.value("isHUD", false);
+    preserveAspect = j.value("preserveAspect", false);
 }

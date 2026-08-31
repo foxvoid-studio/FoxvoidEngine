@@ -559,6 +559,29 @@ class SpriteSheetRenderer(Component):
             rows: The number of rows in the spritesheet grid.
         """
         ...
+
+    is_hud: bool
+    """
+    Determines if the sprite is rendered in screen space as a UI element (True) 
+    or in world space using standard camera transformations (False).
+    """
+
+    preserve_aspect: bool
+    """
+    Determines whether the sprite maintains its original aspect ratio when rendered 
+    in the UI (HUD mode). If True, the image will scale to fit inside its RectTransform 
+    bounds without stretching, automatically centering itself within the available space.
+    """
+
+    def set_texture(self, path: str) -> None:
+        """
+        Safely unloads the current texture reference and loads a new one.
+        Automatically resolves the given path through the engine's Asset Registry.
+        
+        Args:
+            path: The relative path to the new image file (e.g., 'assets/textures/new_icon.png').
+        """
+        ...
         
     @property
     def frame(self) -> int:
@@ -1693,5 +1716,27 @@ class CloudManager:
                            Receives a list containing instances of the requested class.
         :param on_error: Optional callback triggered if the HTTP request fails or parsing errors occur.
                          Receives a string containing the error message.
+        """
+        ...
+
+    @staticmethod
+    def equip_item(
+        item_id: int, 
+        category: str, 
+        disable_all: bool = True, 
+        on_success: Optional[Callable[[], None]] = None, 
+        on_error: Optional[Callable[[str], None]] = None
+    ) -> None:
+        """
+        Equips a specific item in the player's cloud inventory by setting its 'is_active' state to True.
+        Makes an asynchronous HTTP POST request to the Foxvoid Studio backend.
+        
+        Args:
+            item_id (int): The unique database ID of the item to equip.
+            category (str): The category of the item (e.g., "plane_skin"). Used by the backend to scope the action.
+            disable_all (bool): If True, un-equips (sets is_active=False) all other items in the same category 
+                                before equipping the requested one. Defaults to True.
+            on_success (Callable[[], None], optional): Callback triggered when the server successfully registers the equipment.
+            on_error (Callable[[str], None], optional): Callback triggered if the network request fails, receiving the error string.
         """
         ...

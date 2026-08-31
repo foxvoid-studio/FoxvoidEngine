@@ -24,4 +24,15 @@ class MainMenuBar {
 
         // Multi-threading and progress tracking for the Build system
         bool m_openBuildProgressPopup = false;
+
+        // Modal State
+        bool m_openLoginPopup = false;
+        char m_usernameBuffer[128] = "";
+        char m_passwordBuffer[128] = "";
+
+        // Async Threading protection for login
+        std::atomic<bool> m_isAuthenticating{false};
+        std::atomic<bool> m_loginSuccess{false};
+        std::mutex m_authMutex;
+        std::string m_authMessage = "";
 };

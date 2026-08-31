@@ -13,7 +13,7 @@
 // ASYNC PYTHON CALLBACK MANAGER (BULLETPROOF)
 // ==========================================
 
-// CRITICAL FIX: The GIL MUST be locked even in WebAssembly. 
+// The GIL MUST be locked even in WebAssembly. 
 // Otherwise, Pybind11 will corrupt memory when managing object reference counts.
 #define SAFE_GIL_ACQUIRE() py::gil_scoped_acquire acquire;
 
@@ -52,6 +52,49 @@ struct PyAsyncContext {
         }
     }
 };
+
+// ==========================================
+// JSON TO PYTHON CONVERSION HELPER
+// ==========================================
+// This recursive function converts a C++ nlohmann::json object 
+// into its exact Python equivalent (py::dict, py::list, primitives).
+// It ensures nested dictionaries (like 'icon' in custom_data) are preserved!
+py::object JsonToPyObject(const nlohmann::json& j) {
+    if (j.is_null()) {
+        return py::none();
+    } 
+    else if (j.is_boolean()) {
+        return py::bool_(j.get<bool>());
+    } 
+    else if (j.is_number_integer()) {
+        return py::int_(j.get<long>()); // Use long for safety with large IDs
+    } 
+    else if (j.is_number_float()) {
+        return py::float_(j.get<double>());
+    } 
+    else if (j.is_string()) {
+        return py::str(j.get<std::string>());
+    } 
+    else if (j.is_array()) {
+        py::list pyList;
+        for (const auto& item : j) {
+            // Recursively convert each item in the array
+            pyList.append(JsonToPyObject(item));
+        }
+        return pyList;
+    } 
+    else if (j.is_object()) {
+        py::dict pyDict;
+        for (const auto& [key, value] : j.items()) {
+            // Recursively convert each value in the dictionary
+            pyDict[py::str(key)] = JsonToPyObject(value);
+        }
+        return pyDict;
+    }
+    
+    // Fallback if type is unrecognized (should never happen with standard JSON)
+    return py::none();
+}
 
 void BindNetwork(py::module_& m) {
     py::class_<HttpResponse>(m, "HttpResponse")
@@ -288,6 +331,8 @@ void BindNetwork(py::module_& m) {
 
                                 py::object itemClass = ctx->extra; 
                                 std::string targetCategory = "";
+                                
+                                // Extract the target category string from the Python class definition
                                 if (py::hasattr(itemClass, "category")) {
                                     targetCategory = py::cast<std::string>(py::str(itemClass.attr("category")));
                                 }
@@ -297,12 +342,13 @@ void BindNetwork(py::module_& m) {
 
                                     std::string itemCategory = itemData.value("category", "");
                                     
+                                    // If the class defines a category, we only instantiate matching items
                                     if (targetCategory.empty() || itemCategory == targetCategory) {
                                         
-                                        // Instantiate the Python class
+                                        // Instantiate the Python class dynamically (e.g. PlaneSkin())
                                         py::object instance = itemClass();
                                         
-                                        // CRITICAL FIX: Set attributes directly via Python to bypass C++ RTTI casting errors in WASM
+                                        // Set attributes directly via Python to bypass C++ RTTI casting errors in WASM
                                         instance.attr("item_id") = itemData.value("item_id", 0);
                                         instance.attr("name") = itemData.value("name", "");
                                         instance.attr("quantity") = itemData.value("quantity", 0);
@@ -310,17 +356,15 @@ void BindNetwork(py::module_& m) {
                                         
                                         py::dict customDataDict;
                                         if (itemData.contains("custom_data") && itemData["custom_data"].is_object()) {
-                                            for (auto& [k, v] : itemData["custom_data"].items()) {
-                                                if (v.is_string()) customDataDict[k.c_str()] = v.get<std::string>();
-                                                else if (v.is_number_integer()) customDataDict[k.c_str()] = v.get<int>();
-                                                else if (v.is_number_float()) customDataDict[k.c_str()] = v.get<float>();
-                                                else if (v.is_boolean()) customDataDict[k.c_str()] = v.get<bool>();
-                                            }
+                                            // The helper returns a py::object, we cast it to a py::dict
+                                            customDataDict = JsonToPyObject(itemData["custom_data"]).cast<py::dict>();
                                         }
                                         
+                                        // Assign the fully populated dictionary to the Python instance
                                         instance.attr("custom_data") = customDataDict; 
                                         
-                                        // Trigger Python's on_deserialized dynamically
+                                        // Trigger Python's on_deserialized dynamically so the user 
+                                        // can safely extract their specific fields (like icon_id)
                                         if (py::hasattr(instance, "on_deserialized")) {
                                             instance.attr("on_deserialized")();
                                         }
@@ -339,5 +383,28 @@ void BindNetwork(py::module_& m) {
                     }
                 );
             } catch (const std::exception& e) { std::cerr << "[Cloud] Fatal Sync Error in pull_inventory: " << e.what() << std::endl; }
-        }, py::arg("cls"), py::arg("on_success"), py::arg("on_error") = py::none());
+        }, py::arg("cls"), py::arg("on_success"), py::arg("on_error") = py::none())
+
+        .def_static("equip_item", [](int itemId, const std::string& category, bool disableAll, py::object onSuccess, py::object onError) {
+            try {
+                auto ctx = std::make_shared<PyAsyncContext>(onSuccess, onError);
+                
+                CloudManager::EquipItem(itemId, category, disableAll,
+                    [ctx](const nlohmann::json& responseData) {
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onSuccess.is_none()) {
+                                ctx->onSuccess();
+                            }
+                        })
+                    },
+                    [ctx](const std::string& err) {
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onError.is_none()) { ctx->onError(err); }
+                        })
+                    }
+                );
+            } catch (const std::exception& e) { 
+                std::cerr << "[Cloud] Fatal Sync Error in equip_item: " << e.what() << std::endl; 
+            }
+        }, py::arg("item_id"), py::arg("category"), py::arg("disable_all") = true, py::arg("on_success") = py::none(), py::arg("on_error") = py::none());
 }

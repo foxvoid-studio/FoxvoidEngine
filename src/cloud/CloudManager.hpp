@@ -24,6 +24,8 @@ class [[gnu::visibility("default")]] CloudManager {
 
         static void PullInventory(CloudSuccessCallback onSuccess, CloudErrorCallback onError);
         
+        static void EquipItem(int itemId, const std::string& category, bool disableAll, CloudSuccessCallback onSuccess, CloudErrorCallback onError);
+
     private: 
         static std::string s_apiBaseUrl;
         static std::string s_gameSlug;

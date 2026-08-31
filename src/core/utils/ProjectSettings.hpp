@@ -45,6 +45,11 @@ class ProjectSettings {
         // Helper to get the full path to the asseets folder of the current project
         static std::filesystem::path GetAssetsPath();
 
+        // Local auth management (Stored in .foxvoid_auth.json, ignored by Git)
+        static std::string GetLocalAccessToken();
+        static std::string GetLocalRefreshToken();
+        static void SaveLocalAuth(const std::string& accessToken, const std::string& refreshToken);
+
     private:
         // Stores the parsed JSON configuration in memory
         static nlohmann::json s_config;

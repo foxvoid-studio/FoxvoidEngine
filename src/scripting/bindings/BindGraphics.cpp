@@ -50,6 +50,14 @@ void BindGraphics(py::module_& m) {
 
     py::class_<SpriteSheetRenderer, Component>(m, "SpriteSheetRenderer")
         .def(py::init<std::string, int, int>())
+        .def_readwrite("is_hud", &SpriteSheetRenderer::isHUD)
+        .def_readwrite("preserve_aspect", &SpriteSheetRenderer::preserveAspect)
+
+        // Expose the string version of SetTexture
+        .def("set_texture", py::overload_cast<const std::string&>(&SpriteSheetRenderer::SetTexture),
+            py::arg("path"),
+            "Safely unloads the old texture and loads the new one from a file path.")
+            
         // We bind GetFrame and SetFrame to a clean Python property '.frame'
         .def_property("frame", &SpriteSheetRenderer::GetFrame, &SpriteSheetRenderer::SetFrame)
         // Read-only property for the total frame count

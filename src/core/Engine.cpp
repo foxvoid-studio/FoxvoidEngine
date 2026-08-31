@@ -20,6 +20,8 @@
 #include "scene/ComponentRegistration.hpp"
 #include "scene/ComponentRegistry.hpp"
 
+#include "core/utils/MainThreadDispatcher.hpp"
+
 #include <iostream>
 
 #ifndef STANDALONE_MODE
@@ -175,6 +177,10 @@ void Engine::ProcessInput() {
 }
 
 void Engine::Update(float deltaTime) {
+    // Process all pending cross-thread callbacks FIRST
+    // This ensures network responses and UI updates are evaluated safely on the main thread
+    MainThreadDispatcher::Update();
+
     // Check if a scene change was requested last frame
     if (!m_pendingScenePath.empty()) {
         std::cout << "[Engine] Loading new scene: " << m_pendingScenePath << std::endl;
