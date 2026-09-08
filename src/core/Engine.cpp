@@ -21,6 +21,7 @@
 #include "scene/ComponentRegistry.hpp"
 
 #include "core/utils/MainThreadDispatcher.hpp"
+#include "network/PubManager.hpp"
 
 #include <iostream>
 
@@ -86,6 +87,8 @@ Engine::Engine(int width, int height, const std::string& title)
 
         std::cout << "[Engine] Initialized successfully." << std::endl;
         ScriptEngine::Initialize();
+
+        PubManager::Initialize();
     } else {
         std::cerr << "[Engine] Failed to initialize window." << std::endl;
     }

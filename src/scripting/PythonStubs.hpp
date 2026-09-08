@@ -1738,4 +1738,32 @@ class CloudManager:
             on_error (Callable[[str], None], optional): Callback triggered if the network request fails, receiving the error string.
         """
         ...
+
+
+class PubManager:
+    """
+    Cross-platform Advertisement Manager.
+    Handles the initialization and display of rewarded video ads.
+    Abstracts the underlying implementation (Emscripten HTML5, Android JNI, or Desktop browser polling).
+    """
+
+    @staticmethod
+    def show_rewarded_ad(
+        placement_id: str, 
+        on_reward: Optional[Callable[[], None]] = None, 
+        on_error: Optional[Callable[[str], None]] = None
+    ) -> None:
+        """
+        Requests and displays a rewarded video ad based on the active platform.
+        
+        - WebAssembly: Triggers a JavaScript HTML5 overlay.
+        - Android: Triggers native AdMob UI via JNI (Deferred).
+        - Desktop (Linux/Windows): Opens the system browser to a Django-hosted ad page and polls the API.
+
+        Args:
+            placement_id: The unique string identifier for the ad placement (e.g., "tappy_plane_revive").
+            on_reward: Callback triggered asynchronously on the Main Thread when the ad is fully watched.
+            on_error: Callback triggered asynchronously on the Main Thread if the ad fails, is closed early, or times out. Receives an error message string.
+        """
+        ...
 )";

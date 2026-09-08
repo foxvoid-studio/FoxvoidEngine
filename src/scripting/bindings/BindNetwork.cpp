@@ -8,6 +8,7 @@
 #include <network/HttpClient.hpp>
 #include <scripting/ScriptableObject.hpp>
 #include <cloud/CloudItem.hpp>
+#include "network/PubManager.hpp"
 
 // ==========================================
 // ASYNC PYTHON CALLBACK MANAGER (BULLETPROOF)
@@ -407,4 +408,29 @@ void BindNetwork(py::module_& m) {
                 std::cerr << "[Cloud] Fatal Sync Error in equip_item: " << e.what() << std::endl; 
             }
         }, py::arg("item_id"), py::arg("category"), py::arg("disable_all") = true, py::arg("on_success") = py::none(), py::arg("on_error") = py::none());
+
+    py::class_<PubManager>(m, "PubManager")
+        .def_static("show_rewarded_ad", [](const std::string& placementId, py::object onReward, py::object onError) {
+            try {
+                // Safely capture Python functions in our shared context to manage the GIL
+                auto ctx = std::make_shared<PyAsyncContext>(onReward, onError);
+                
+                PubManager::ShowRewardedAd(placementId,
+                    [ctx]() {
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onSuccess.is_none()) { ctx->onSuccess(); }
+                        })
+                    },
+                    [ctx](const std::string& err) {
+                        EXECUTE_PYTHON_CALLBACK({
+                            if (!ctx->onError.is_none()) { ctx->onError(err); }
+                            else { std::cerr << "[PubManager] Ad Error: " << err << std::endl; }
+                        })
+                    }
+                );
+            } catch (const std::exception& e) {
+                std::cerr << "[PubManager] Fatal Sync Error in show_rewarded_ad: " << e.what() << std::endl;
+            }
+        }, py::arg("placement_id"), py::arg("on_reward") = py::none(), py::arg("on_error") = py::none(),
+        "Displays a rewarded video ad based on the platform and triggers the callback on success.");
 }
